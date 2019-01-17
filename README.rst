@@ -1,5 +1,6 @@
 Galaxywrap
 ===========
+|travis|
 
 `Galaxywrap` is a galfit wrapper for pythonn
 
@@ -24,3 +25,6 @@ License
 -------
 
 This project is licensed under the MIT license.
+
+.. |travis| image:: https://travis-ci.com/pslustig/galaxywrap.svg?branch=master
+       :target: https://travis-ci.org/pslustig/galaxywrap
