@@ -2,7 +2,7 @@ Galaxywrap
 ===========
 |travis| |maintainability| |testcoverage|
 
-`Galaxywrap` is a galfit wrapper for pythonn
+`Galaxywrap` is a galfit wrapper for python
 
 Installation
 ------------
