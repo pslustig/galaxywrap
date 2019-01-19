@@ -1,5 +1,8 @@
 import astropy.units as u
 from . import utils
+from astropy.nddata import NDDataArray
+import numpy as np
+
 
 class setup(object):
     ''' setup class that contains map and run properties
@@ -61,6 +64,31 @@ class setup(object):
         self.__runoption = runoption
 
 
-class psf(object):
+class psf(NDDataArray):
+    # TODO: Maybe add gaussian center fit to check if psf is well centered
     def __init__(self, psf, convolutionbox, finesampling=1):
-        pass
+        self.data = psf
+        self.convolutionbox = convolutionbox
+        self.finesampling = finesampling
+
+    @property
+    def convolutionbox(self):
+        return self.__convolutionbox
+
+    @convolutionbox.setter
+    def convolutionbox(self, convolutionbox):
+        if not utils.isiterable(convolutionbox):
+            convolutionbox = (convolutionbox, convolutionbox)
+        assert isinstance(convolutionbox[0], int)
+        assert isinstance(convolutionbox[1], int)
+        self.__convolutionbox = convolutionbox
+
+    @property
+    def finesampling(self):
+        return self.__finesampling
+
+    @finesampling.setter
+    def finesampling(self, finesampling):
+        assert isinstance(finesampling, int), (
+                    'finesampling factor must be an integer')
+        self.__finesampling = finesampling
