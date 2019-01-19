@@ -1,4 +1,5 @@
 import astropy.units as u
+from . import models
 from . import utils
 from astropy.nddata import NDDataArray
 import numpy as np
