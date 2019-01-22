@@ -8,3 +8,13 @@ def isiterable(obj):
         iterable = False
 
     return iterable
+
+
+def change_tuple_unit(tpl, unit):
+    tpl = list(tpl)
+    if unit is not None:
+        for i, value in enumerate(tpl):
+            if value is not None:
+                tpl[i] = value.to(unit)
+
+    return tpl

@@ -25,6 +25,11 @@ def test_parameter_value_unit():
     assert p.unit == u.pix
 
 
+def test_parameter_bounds():
+    a = mod.parameter(1, bounds=(0, 3))
+    assert a.bounds == [0, 3]
+
+
 def test_parameter__repr__():
     a = mod.parameter(value=3, uncertainty=1)
     assert a.__repr__() == 'parameter value: 3, uncertainty: 1'
@@ -41,7 +46,8 @@ def test_parameter_change_unc_unit():
 def test_component_init():
     c = mod.component('psf', 5000, 4, 20,
                       uncertainties={'x': 1, 'y': 2, 'mag': 3},
-                      fixed={'x': True, 'y': True, 'mag': True})
+                      fixed={'x': True, 'y': True, 'mag': True},
+                      bounds={'x': (.5, 1.5)})
 
     assert c.x.value == 5000
     assert c.y.value == 4
@@ -59,7 +65,7 @@ def test_component_init():
 def test_component_to_galfit():
     c = mod.component('psf', 5000, 4, 20,
                       uncertainties={'x': 1, 'y': 2, 'mag': 3},
-                      fixed={'x': True, 'y': True, 'mag': True})
+                      fixed={'x': True, 'y': True, 'mag': True}, bounds={'x': (.5, 1.5)})
 
     assert c.to_galfit() == ''' 0) psf                       # object name\n 1) 5000.0000    4.0000  1  1 # position x, y\n 2)  20.0000         0        # total magnitude\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'''
 
@@ -68,7 +74,8 @@ def test_analytic_component_init():
     c = mod.analytic_component(
                         'cname', 1, 2, 3, 4, 5, 6,
                         uncertainties={'r': 4.5, 'ratio': 5.5, 'pa': 6.5},
-                        fixed={'r': True, 'ratio': True, 'pa': True})
+                        fixed={'r': True, 'ratio': True, 'pa': True},
+                        bounds={'x': (.5, 1.5)})
 
     assert c.r.value == 4
     assert c.ratio.value == 5
@@ -87,5 +94,60 @@ def test_analytic_component_to_galfit():
     c = mod.analytic_component(
                         'cname', 1, 2, 3, 4, 5, 6,
                         uncertainties={'r': 4.5, 'ratio': 5.5, 'pa': 6.5},
-                        fixed={'r': True, 'ratio': True, 'pa': True})
+                        fixed={'r': True, 'ratio': True, 'pa': True},
+                        bounds={'x': (.5, 1.5)})
     assert c.to_galfit() == ' 0) cname                     # object name\n 1)   1.0000    2.0000  0  0 # position x, y\n 2)   3.0000         1        # total magnitude\n 3)   4.0000         0        # effective radius\n 8)   5.0000         0        # axis ratio\n 9)   6.0000         0        # position angle\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'
+
+
+def test_sersic_init():
+    c = mod.sersic(
+        1, 2, 3, 4, 7, 5, 6,
+        uncertainties={'n': 7.5},
+        fixed={'n': True})
+
+    assert c.n.value == 7
+    assert c.n.uncertainty == 7.5
+    assert c.n.fixed is True
+
+
+def test_sersic_to_galfit():
+    c = mod.sersic(
+            1, 2, 3, 4, 7, 5, 6,
+            uncertainties={'n': 7.5},
+            fixed={'n': True})
+
+    assert c.to_galfit() == ' 0) sersic                    # object name\n 1)   1.0000    2.0000  0  0 # position x, y\n 2)   3.0000         1        # total magnitude\n 3)   4.0000         1        # effective radius\n 4)   7.0000         0        # sersic index\n 8)   5.0000         1        # axis ratio\n 9)   6.0000         1        # position angle\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'
+
+
+def test_model_empty():
+    m = mod.model()
+    assert len(m) == 0
+
+
+def test_model_sersic_init():
+    c0 = mod.sersic(1, 2, 3, 4, 7, 5, 6, uncertainties={'n': 7.5},
+                    fixed={'n': True})
+    c1 = mod.sersic(1, 2, 3, 4, 7, 5, 6, uncertainties={'n': 7.5},
+                    fixed={'n': True})
+
+    m = mod.model([c0, c1], [True, False])
+    ref = (c0, c1)
+
+    # test __len__
+    assert len(m) == 2
+
+    # test __getitem__
+    assert m[0] == c0
+    assert m[1] == c1
+
+    # test __iter__
+    for mm, ref in zip(m, ref):
+        assert mm == ref
+
+    # test __delitem__
+    m.__delitem__(0)
+    assert m[0] == c1
+
+    # test __setitem__
+    m[0] = c0
+    assert m[0] == c0
