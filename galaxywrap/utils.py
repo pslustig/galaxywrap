@@ -18,3 +18,15 @@ def change_tuple_unit(tpl, unit):
                 tpl[i] = value.to(unit)
 
     return tpl
+
+
+def translate_to_constraints_names(name):
+    if name == 'r':
+        name = 're'
+    return name
+
+
+def check_all_or_no_None(tpl):
+    if None in tpl:
+        for entry in tpl:
+            assert entry is None

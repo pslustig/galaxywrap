@@ -15,3 +15,8 @@ def test_change_tuple_unit():
     tpl = utils.change_tuple_unit(tpl, u.kg)
     assert tpl[0].unit == u.kg
     assert tpl[1].unit == u.kg
+
+
+def test_translate_to_constraints_names():
+    assert utils.translate_to_constraints_names('r') == 're'
+    assert utils.translate_to_constraints_names('a') == 'a'

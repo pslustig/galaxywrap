@@ -47,7 +47,7 @@ def test_component_init():
     c = mod.component('psf', 5000, 4, 20,
                       uncertainties={'x': 1, 'y': 2, 'mag': 3},
                       fixed={'x': True, 'y': True, 'mag': True},
-                      bounds={'x': (.5, 1.5)})
+                      bounds={'x': (.5, 1.5)}, rbounds={})
 
     assert c.x.value == 5000
     assert c.y.value == 4
@@ -65,9 +65,13 @@ def test_component_init():
 def test_component_to_galfit():
     c = mod.component('psf', 5000, 4, 20,
                       uncertainties={'x': 1, 'y': 2, 'mag': 3},
-                      fixed={'x': True, 'y': True, 'mag': True}, bounds={'x': (.5, 1.5)})
+                      fixed={'x': True, 'y': True, 'mag': True},
+                      bounds={'x': (.5, 1.5)}, rbounds={})
+
+
 
     assert c.to_galfit() == ''' 0) psf                       # object name\n 1) 5000.0000    4.0000  1  1 # position x, y\n 2)  20.0000         0        # total magnitude\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'''
+    assert c.constraints_to_galfit(1) == '\n         1  x                       0.5000 to   1.5000'
 
 
 def test_analytic_component_init():
@@ -75,7 +79,7 @@ def test_analytic_component_init():
                         'cname', 1, 2, 3, 4, 5, 6,
                         uncertainties={'r': 4.5, 'ratio': 5.5, 'pa': 6.5},
                         fixed={'r': True, 'ratio': True, 'pa': True},
-                        bounds={'x': (.5, 1.5)})
+                        bounds={'x': (.5, 1.5)}, rbounds={})
 
     assert c.r.value == 4
     assert c.ratio.value == 5
@@ -95,7 +99,7 @@ def test_analytic_component_to_galfit():
                         'cname', 1, 2, 3, 4, 5, 6,
                         uncertainties={'r': 4.5, 'ratio': 5.5, 'pa': 6.5},
                         fixed={'r': True, 'ratio': True, 'pa': True},
-                        bounds={'x': (.5, 1.5)})
+                        bounds={'x': (.5, 1.5)}, rbounds={})
     assert c.to_galfit() == ' 0) cname                     # object name\n 1)   1.0000    2.0000  0  0 # position x, y\n 2)   3.0000         1        # total magnitude\n 3)   4.0000         0        # effective radius\n 8)   5.0000         0        # axis ratio\n 9)   6.0000         0        # position angle\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'
 
 
@@ -151,3 +155,9 @@ def test_model_sersic_init():
     # test __setitem__
     m[0] = c0
     assert m[0] == c0
+
+# if __name__ == '__main__':
+#     from importlib import reload
+#     reload(mod)
+#     c = test_component_to_galfit()
+#     c

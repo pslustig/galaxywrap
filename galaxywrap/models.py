@@ -5,7 +5,7 @@ from . import utils
 
 class parameter(object):
     def __init__(self, value, uncertainty=None, name='', description='',
-                 fixed=False, bounds=(None, None)):
+                 fixed=False, bounds=(None, None), rbounds=(None, None)):
         # TODO: test boundaries
         self.value = value
         self.uncertainty = uncertainty
@@ -45,20 +45,31 @@ class parameter(object):
 
     @bounds.setter
     def bounds(self, bounds):
+        utils.check_all_or_no_None(bounds)
         self._bounds = utils.change_tuple_unit(bounds, self.unit)
+
+    @property
+    def rbounds(self):
+        return utils.change_tuple_unit(self._rbounds, self.unit)
+
+    @rbounds.setter
+    def rbounds(self, rbounds):
+        utils.check_all_or_no_None(rbounds)
+        self._rbounds = utils.change_tuple_unit(rbounds, self.unit)
 
 
 def make_parameter(name, description, value, uncertainties, fixeddict,
-                   bounddict):
+                   bounddict, rbounddict):
     p = parameter(value, uncertainties.pop(name, None), name=name,
                   description=description, fixed=fixeddict.pop(name, False),
-                  bounds=bounddict.pop(name, (None, None)))
+                  bounds=bounddict.pop(name, (None, None)),
+                  rbounds=rbounddict.pop(name, (None, None)))
     return p
 
 
 class component(object):
     # TODO: create boundary constraints
-    def __init__(self, name, x, y, mag, uncertainties, fixed, bounds):
+    def __init__(self, name, x, y, mag, uncertainties, fixed, bounds, rbounds):
         self.name = name
 
         values = [x, y, mag]
@@ -67,7 +78,7 @@ class component(object):
 
         for value, name, description in zip(values, names, descriptions):
             param = make_parameter(name, description, value, uncertainties,
-                                   fixed, bounds)
+                                   fixed, bounds, rbounds)
             self.__setattr__(name, param)
 
         self._parameters = [self.x, self.y, self.mag]
@@ -86,12 +97,25 @@ class component(object):
                 skipinimage, 'Skip this model in output image?(yes=1, no=0)')
         return out
 
+    def constraints_to_galfit(self, componentnumber):
+        constraints = ''
+        for parameter in self._parameters:
+            name = utils.translate_to_constraints_names(parameter.name)
+            if parameter.bounds[0] is not None:
+                constraints += '\n{:10d}  {:20s}  {:8.4f} to {:8.4f}'.format(
+                                      componentnumber, name, *parameter.bounds)
+            if parameter.rbounds[0] is not None:
+                constraints += '\n{:10d}  {:20s}  {:8.4f}  {:8.4f}'.format(
+                                     componentnumber, name, *parameter.rbounds)
+
+        return constraints
+
 
 class analytic_component(component):
     def __init__(self, name, x, y, mag, r, ratio, pa, uncertainties,
-                 fixed, bounds):
+                 fixed, bounds, rbounds):
 
-        super().__init__(name, x, y, mag, uncertainties, fixed, bounds)
+        super().__init__(name, x, y, mag, uncertainties, fixed, bounds, rbounds)
 
         values = [r, ratio, pa]
         names = ['r', 'ratio', 'pa']
@@ -99,7 +123,7 @@ class analytic_component(component):
 
         for value, name, description in zip(values, names, descriptions):
             param = make_parameter(name, description, value, uncertainties,
-                                   fixed, bounds)
+                                   fixed, bounds, rbounds)
             self.__setattr__(name, param)
 
         self._parameters = [self.x, self.y, self.mag, self.r, None, None,
@@ -108,12 +132,12 @@ class analytic_component(component):
 
 class sersic(analytic_component):
     def __init__(self, x, y, mag, r, n, ratio, pa, uncertainties={}, fixed={},
-                 bounds={}):
+                 bounds={}, rbounds={}):
         super().__init__('sersic', x, y, mag, r, ratio, pa, uncertainties,
-                         fixed, bounds)
+                         fixed, bounds, rbounds)
 
         self.n = make_parameter('n', 'sersic index', n, uncertainties, fixed,
-                                bounds)
+                                bounds, rbounds)
 
         self._parameters = [self.x, self.y, self.mag, self.r, self.n, None,
                             None, None, self.ratio, self.pa]
@@ -190,11 +214,18 @@ class model(object):
     def _add_skip_in_image(self, skipinimage):
         self._skipinimage.append(skipinimage)
 
-    def fit(self):
+    def fit(self, *args, **kwargs):
         '''fit model to data. input:
         map with properties, psf, fitarea
 
         returns
         new model with fit results and log
         '''
+        return self._start_galfitrun(0, *args, **kwargs)
+
+
+    def make(self, *args, **kwargs):
+        return self._start_galfitrun(2, *args, **kwargs)
+
+    def _start_galfitrun(self, mode, map, sigma, psf):
         pass
