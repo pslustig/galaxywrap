@@ -58,6 +58,23 @@ class parameter(object):
         utils.check_all_or_no_None(rbounds)
         self._rbounds = utils.change_tuple_unit(rbounds, self.unit)
 
+    def _to_galfit(self, galfitcomponentnumber, parameternumber):
+
+        value = '\n{:2d}) {:8.4f}         {:d}        # {}'.format(
+                parameternumber, self.value, not self.fixed, self.description)
+
+        constraints = ''
+        name = utils.translate_to_constraints_names(self.name)
+
+        if self.bounds[0] is not None:
+            constraints += '\n{:10d}  {:20s}  {:8.4f} to {:8.4f}'.format(
+                              galfitcomponentnumber, name, *self.bounds)
+        if self.rbounds[0] is not None:
+            constraints += '\n{:10d}  {:20s}  {:8.4f}  {:8.4f}'.format(
+                              galfitcomponentnumber, name, *self.rbounds)
+
+        return value, constraints
+
 
 def make_parameter(name, description, value, uncertainties, fixeddict,
                    bounddict, rbounddict):
@@ -84,39 +101,34 @@ class component(object):
 
         self._parameters = [self.x, self.y, self.mag]
 
-    def to_galfit(self, skipinimage=False):
-        out = ' 0) {:25s} # object name'.format(self.name)
-        out += '\n 1) {:8.4f}  {:8.4f}  {:d}  {:d} # position x, y'.format(
-                        self.x.value, self.y.value, self.x.fixed, self.y.fixed)
-
-        for i, parameter in enumerate(self._parameters[2:]):
-            if parameter is not None:
-                out += '\n{:2d}) {:8.4f}         {:d}        # {}'.format(
-                            i+2, parameter.value, not parameter.fixed,
-                            parameter.description)
-        out += '\n Z) {:d}                         # {}'.format(
-                skipinimage, 'Skip this model in output image?(yes=1, no=0)')
-        return out
-
-    def constraints_to_galfit(self, componentnumber):
+    def _to_galfit(self, componentnumber, skipinimage=False):
+        componentnumber += 1    # galfit starts counting with 1
         constraints = ''
-        for parameter in self._parameters:
-            name = utils.translate_to_constraints_names(parameter.name)
-            if parameter.bounds[0] is not None:
-                constraints += '\n{:10d}  {:20s}  {:8.4f} to {:8.4f}'.format(
-                                      componentnumber, name, *parameter.bounds)
-            if parameter.rbounds[0] is not None:
-                constraints += '\n{:10d}  {:20s}  {:8.4f}  {:8.4f}'.format(
-                                     componentnumber, name, *parameter.rbounds)
 
-        return constraints
+        body = '# Component number: {}'.format(componentnumber)
+        body += '\n 0) {:25s} # object name'.format(self.name)
+        body += '\n 1) {:8.4f}  {:8.4f}  {:d}  {:d} # position x, y'.format(
+                self.x.value, self.y.value, not self.x.fixed, not self.y.fixed)
+
+        for i, parameter in enumerate(self._parameters):
+            if parameter is not None:
+                pvalue, pconstr = parameter._to_galfit(componentnumber, i)
+                constraints += pconstr
+                if i > 1:
+                    body += pvalue
+
+        body += '\n Z) {:d}                         # {}'.format(
+                skipinimage, 'Skip this model in output image?(yes=1, no=0)')
+
+        return body
 
 
 class analytic_component(component):
     def __init__(self, name, x, y, mag, r, ratio, pa, uncertainties,
                  fixed, bounds, rbounds):
 
-        super().__init__(name, x, y, mag, uncertainties, fixed, bounds, rbounds)
+        super().__init__(name, x, y, mag, uncertainties, fixed, bounds,
+                         rbounds)
 
         values = [r, ratio, pa]
         names = ['r', 'ratio', 'pa']
@@ -142,8 +154,6 @@ class sersic(analytic_component):
 
         self._parameters = [self.x, self.y, self.mag, self.r, self.n, None,
                             None, None, self.ratio, self.pa]
-
-
 
 
 class sky(object):
@@ -224,9 +234,35 @@ class model(object):
         '''
         return self._start_galfitrun(0, *args, **kwargs)
 
-
     def make(self, *args, **kwargs):
         return self._start_galfitrun(2, *args, **kwargs)
 
-    def _start_galfitrun(self, mode, map, sigma, psf):
+    def _make_global_constraints(self, gconstraints):
+        return ''
+
+    def _start_galfitrun(self, mode, map, psf, gconstraints):
+        entries = ''
+        constraints = self._make_global_constraints(gconstraints)
+        for i, (component, skip) in enumerate(zip(self, self.skipinimage)):
+            entry, constraint = component.to_galfit()
+            entries += entry
+            constraints += constraint
         pass
+
+    def _make_head(image, psf, constraints):
+        unc = image.uncertainty
+        head = '# IMAGE and GALFIT CONTROL PARAMETERS'
+        head += 'A) inimg.fits'
+        head += 'B) imgblock.fits'
+        head += 'C) {}'.format('sigma.fits' if unc is not None else 'none')
+        head += 'D) {}'.format('psf.fits' if psf is not None else 'none')
+        head += 'E) {}'.format(1 if psf is None else psf.finesampling)
+        head += 'F) {}'.format('none' if image.mask is None else 'mask.fits')
+        head += 'G) {}'.format('none' if constraints == '' else 'mask.fits')
+        head += 'H) {}   {}   {}   {}'.format(*image.fitregion_x,
+                                              *image.fitregion_y)
+        head += 'I) convolutionboxdings'
+        head += 'J) zeropoint'
+        head += 'K) plate_scale'
+        head += 'O) displaytype'
+        head += 'P) optimize, model, imgblock,  subcomps (0-3)'

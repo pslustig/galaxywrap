@@ -67,18 +67,6 @@ def test_component_init():
     assert c.mag.fixed is True
 
 
-def test_component_to_galfit():
-    c = mod.component('psf', 5000, 4, 20,
-                      uncertainties={'x': 1, 'y': 2, 'mag': 3},
-                      fixed={'x': True, 'y': True, 'mag': True},
-                      bounds={'x': (.5, 1.5)}, rbounds={})
-
-
-
-    assert c.to_galfit() == ''' 0) psf                       # object name\n 1) 5000.0000    4.0000  1  1 # position x, y\n 2)  20.0000         0        # total magnitude\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'''
-    assert c.constraints_to_galfit(1) == '\n         1  x                       0.5000 to   1.5000'
-
-
 def test_analytic_component_init():
     c = mod.analytic_component(
                         'cname', 1, 2, 3, 4, 5, 6,
@@ -161,8 +149,21 @@ def test_model_sersic_init():
     m[0] = c0
     assert m[0] == c0
 
-# if __name__ == '__main__':
-#     from importlib import reload
-#     reload(mod)
-#     c = test_component_to_galfit()
-#     c
+
+def test_component_to_galfit():
+    c = mod.component('psf', 5000, 4, 20,
+                      uncertainties={'x': 1, 'y': 2, 'mag': 3},
+                      fixed={'x': True, 'y': True, 'mag': True},
+                      bounds={'x': (.5, 1.5)}, rbounds={'y': (1, 1)})
+
+    return c._to_galfit(0, False)
+
+    # assert c.to_galfit() == ''' 0) psf                       # object name\n 1) 5000.0000    4.0000  1  1 # position x, y\n 2)  20.0000         0        # total magnitude\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'''
+    # assert c.constraints_to_galfit(1) == '\n         1  x                       0.5000 to   1.5000'
+
+
+if __name__ == '__main__':
+    from importlib import reload
+    reload(mod)
+    c = test_component_to_galfit()
+    print(c)

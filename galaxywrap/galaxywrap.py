@@ -3,6 +3,7 @@ from . import models
 from . import utils
 from astropy.nddata import NDDataArray
 import numpy as np
+from astropy.nddata import NDDataArray
 
 
 class setup(object):
@@ -22,8 +23,11 @@ class setup(object):
 
     runoption : `int`
         Options: 0=normal run; 1,2=make model/imgblock & quit
+
     '''
     # TODO: Probably can remove runoption and displaytype
+    # TODO: add exptime, magzpt und die beiden adu und dings faktoren
+    # TODO: replace double underscores
 
     def __init__(self, magzeropoint, platescale, displaytype, runoption):
         self.magzeropoint = magzeropoint
@@ -93,3 +97,9 @@ class psf(NDDataArray):
         assert isinstance(finesampling, int), (
                     'finesampling factor must be an integer')
         self.__finesampling = finesampling
+
+class image(NDDataArray):
+    ''' soll maskierten array ausgeben wie nikamap, enthält settings, mask,
+    uncertainty
+    '''
+    pass
