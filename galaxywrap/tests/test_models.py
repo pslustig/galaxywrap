@@ -30,6 +30,11 @@ def test_parameter_bounds():
     assert a.bounds == [0, 3]
 
 
+def test_parameter_rbounds():
+    a = mod.parameter(1, rbounds=(0, 3))
+    assert a.rbounds == [0, 3]
+
+
 def test_parameter__repr__():
     a = mod.parameter(value=3, uncertainty=1)
     assert a.__repr__() == 'parameter value: 3, uncertainty: 1'

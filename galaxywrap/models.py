@@ -14,6 +14,7 @@ class parameter(object):
         assert isinstance(fixed, bool)
         self.fixed = fixed
         self.bounds = bounds
+        self.rbounds = rbounds
 
     @property
     def uncertainty(self):
