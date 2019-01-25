@@ -1,12 +1,14 @@
-import astropy.units as u
 from . import models
 from . import utils
 from astropy.nddata import NDDataArray
 import numpy as np
 from astropy.nddata import NDDataArray
+from astropy import wcs
+from astropy.io import fits
+import warnings
 
 
-class setup(object):
+class mapproperties(object):
     ''' setup class that contains map and run properties
 
     Parameters
@@ -18,55 +20,47 @@ class setup(object):
         The angular size of one pixel. If single value the same size is
         assumed for both directions.
 
-    displaytype : `str`
-        Must be either 'regular' or 'curses' or 'both'
-
-    runoption : `int`
-        Options: 0=normal run; 1,2=make model/imgblock & quit
-
     '''
-    # TODO: Probably can remove runoption and displaytype
-    # TODO: add exptime, magzpt und die beiden adu und dings faktoren
-    # TODO: replace double underscores
 
-    def __init__(self, magzeropoint, platescale, displaytype, runoption):
-        self.magzeropoint = magzeropoint
+    # TODO: add exptime, magzpt und die beiden adu und dings faktoren
+
+    def __init__(self, magzpt, exptime, platescale, gain, ncombine, unit):
+        self.magzpt = magzpt
         self.platescale = platescale
-        self.displaytype = displaytype
-        self.runoption = runoption
 
     @property
     def platescale(self):
-        return self.__platescale
+        return self._platescale
 
     @platescale.setter
     def platescale(self, platescale):
-        assert isinstance(platescale, u.Quantity), ('platescale must have '
-                                                    'angle equivalent unit')
+
+        if isinstance(platescale, wcs.WCS):
+            platescale = wcs.utils.proj_plane_pixel_scales(wcs)
+
         if not utils.isiterable(platescale):
-            platescale = u.Quantity([platescale, platescale]).to(u.arcsec)
+            platescale = [platescale, platescale]
 
-        self.__platescale = platescale
+        self._platescale = platescale
 
-    @property
-    def displaytype(self):
-        return self.__displaytype
+    @classmethod
+    def read(cls, header, *args, **kwargs):
+        if not isinstance(header, fits.header.Header):
+            header = fits.getheader(header, *args, **kwargs)
 
-    @displaytype.setter
-    def displaytype(self, displaytype):
-        assert displaytype in ['regular', 'curses', 'both'], (
-                    '{} no valid option for displaytype'.format(displaytype))
-        self.__displaytype = displaytype
+        values = {}
 
-    @property
-    def runoption(self):
-        return self.__runoption
+        keys = [['EXPTIME', 'TEXPTIME'],
+                ['GAIN', 'CCDGAIN'], ['NCOMBINE'], ['UNIT', 'BUNIT']]
+        names = ['exptime', 'gain', 'ncombine', 'unit']
 
-    @runoption.setter
-    def runoption(self, runoption):
-        assert runoption in range(3), (
-                    '{} no valid option for runoption'.format(runoption))
-        self.__runoption = runoption
+        values['platescale'] = wcs.WCS(header)
+        values['magzpt'] = utils.read_zeropoint_magnitude()
+
+        for name, key in zip(names, keys):
+            values[name] = utils.read_value_or_warn(key, header)
+
+        return cls(**values)
 
 
 class psf(NDDataArray):
@@ -98,8 +92,16 @@ class psf(NDDataArray):
                     'finesampling factor must be an integer')
         self.__finesampling = finesampling
 
+
 class image(NDDataArray):
     ''' soll maskierten array ausgeben wie nikamap, enthält settings, mask,
-    uncertainty
+        uncertainty
     '''
-    pass
+
+    def __init__(self, data, *args, **kwargs):
+
+        super(image, self).__init__(*args, **kwargs)
+
+    def __array__(self):
+        """  Overrite NDData.__array__ to force for MaskedArray output  """
+        return np.ma.array(self.data, mask=self.mask)
