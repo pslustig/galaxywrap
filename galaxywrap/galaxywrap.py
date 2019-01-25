@@ -8,7 +8,7 @@ from astropy.io import fits
 import warnings
 
 
-class mapproperties(object):
+class imageproperties(object):
     ''' setup class that contains map and run properties
 
     Parameters
@@ -22,11 +22,13 @@ class mapproperties(object):
 
     '''
 
-    # TODO: add exptime, magzpt und die beiden adu und dings faktoren
-
     def __init__(self, magzpt, exptime, platescale, gain, ncombine, unit):
         self.magzpt = magzpt
+        self.exptime = exptime
         self.platescale = platescale
+        self.gain = gain
+        self.ncombine = ncombine
+        self.unit = unit
 
     @property
     def platescale(self):
@@ -36,7 +38,7 @@ class mapproperties(object):
     def platescale(self, platescale):
 
         if isinstance(platescale, wcs.WCS):
-            platescale = wcs.utils.proj_plane_pixel_scales(wcs)
+            platescale = wcs.utils.proj_plane_pixel_scales(platescale)
 
         if not utils.isiterable(platescale):
             platescale = [platescale, platescale]
@@ -55,7 +57,7 @@ class mapproperties(object):
         names = ['exptime', 'gain', 'ncombine', 'unit']
 
         values['platescale'] = wcs.WCS(header)
-        values['magzpt'] = utils.read_zeropoint_magnitude()
+        values['magzpt'] = utils.read_zeropoint_magnitude(header)
 
         for name, key in zip(names, keys):
             values[name] = utils.read_value_or_warn(key, header)
@@ -72,7 +74,7 @@ class psf(NDDataArray):
 
     @property
     def convolutionbox(self):
-        return self.__convolutionbox
+        return self._convolutionbox
 
     @convolutionbox.setter
     def convolutionbox(self, convolutionbox):
@@ -80,17 +82,17 @@ class psf(NDDataArray):
             convolutionbox = (convolutionbox, convolutionbox)
         assert isinstance(convolutionbox[0], int)
         assert isinstance(convolutionbox[1], int)
-        self.__convolutionbox = convolutionbox
+        self._convolutionbox = convolutionbox
 
     @property
     def finesampling(self):
-        return self.__finesampling
+        return self._finesampling
 
     @finesampling.setter
     def finesampling(self, finesampling):
         assert isinstance(finesampling, int), (
                     'finesampling factor must be an integer')
-        self.__finesampling = finesampling
+        self._finesampling = finesampling
 
 
 class image(NDDataArray):
@@ -100,7 +102,9 @@ class image(NDDataArray):
 
     def __init__(self, data, *args, **kwargs):
 
+        properties = kwargs.pop('properties')
         super(image, self).__init__(*args, **kwargs)
+        self.properties = properties
 
     def __array__(self):
         """  Overrite NDData.__array__ to force for MaskedArray output  """
