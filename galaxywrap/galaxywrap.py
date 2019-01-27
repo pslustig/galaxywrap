@@ -2,7 +2,6 @@ from . import models
 from . import utils
 from astropy.nddata import NDDataArray
 import numpy as np
-from astropy.nddata import NDDataArray
 from astropy import wcs
 from astropy.io import fits
 import warnings
@@ -64,11 +63,34 @@ class imageproperties(object):
 
         return cls(**values)
 
+    def to_header(self):
+        header = fits.header.Header()
+        header['EXPTIME'] = self.exptime
+        header['UNIT'] = self.unit
+        header['NCOMBINE'] = self.ncombine
+
+        return header
+
+
+class image(NDDataArray):
+    ''' soll maskierten array ausgeben wie nikamap, enthält settings, mask,
+        uncertainty
+    '''
+
+    def __init__(self, data, *args, **kwargs):
+
+        properties = kwargs.pop('properties')
+        super(image, self).__init__(data, *args, **kwargs)
+        self.properties = properties
+
+    def __array__(self):
+        """  Overrite NDData.__array__ to force for MaskedArray output  """
+        return np.ma.array(self.data, mask=self.mask)
+
 
 class psf(NDDataArray):
-    # TODO: Maybe add gaussian center fit to check if psf is well centered
-    def __init__(self, psf, convolutionbox, finesampling=1):
-        self.data = psf
+    def __init__(self, data, convolutionbox, finesampling=1):
+        super(psf, self).__init__(data)
         self.convolutionbox = convolutionbox
         self.finesampling = finesampling
 
@@ -93,19 +115,3 @@ class psf(NDDataArray):
         assert isinstance(finesampling, int), (
                     'finesampling factor must be an integer')
         self._finesampling = finesampling
-
-
-class image(NDDataArray):
-    ''' soll maskierten array ausgeben wie nikamap, enthält settings, mask,
-        uncertainty
-    '''
-
-    def __init__(self, data, *args, **kwargs):
-
-        properties = kwargs.pop('properties')
-        super(image, self).__init__(*args, **kwargs)
-        self.properties = properties
-
-    def __array__(self):
-        """  Overrite NDData.__array__ to force for MaskedArray output  """
-        return np.ma.array(self.data, mask=self.mask)

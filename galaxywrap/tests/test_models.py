@@ -1,51 +1,74 @@
 import galaxywrap.models as mod
-import astropy.units as u
 import pytest
+import numpy as np
+import galaxywrap as gw
+from astropy.convolution import Gaussian2DKernel
+from astropy.nddata import StdDevUncertainty
 
 
-def test_parameter_init_value():
+def make_setup():
+    setup = gw.imageproperties(1, 2, 3, 4, 5, 'ELECTRONS')
+    return setup
+
+
+def make_psf():
+    psf = Gaussian2DKernel(x_stddev=5, x_size=50)
+    psf = gw.psf(psf.array, 3, 2)
+    return psf
+
+
+def make_map(mask=True, unc=True):
+    map = np.random.randn(100, 100)
+
+    m = None
+    if mask:
+        m = np.random.choice([True, False], size=map.shape)
+
+    u = None
+    if unc:
+        u = StdDevUncertainty(np.ones(map.size))
+
+    map = gw.image(map, mask=m, uncertainty=u, properties=make_setup())
+    return map
+
+
+def test_parameter_init():
     p = mod.parameter(value=3)
     assert p.value == 3
-    assert p.unit is None
 
-
-def test_parameter_init_novalue():
     with pytest.raises(TypeError):
         mod.parameter(uncertainty=3)
 
-
-def test_parameter_init_uncertainty():
     a = mod.parameter(value=3, uncertainty=1)
+    assert a.value == 3
     assert a.uncertainty == 1
-
-
-def test_parameter_value_unit():
-    p = mod.parameter(value=5*u.pix)
-    assert p.value == 5 * u.pix
-    assert p.unit == u.pix
 
 
 def test_parameter_bounds():
     a = mod.parameter(1, bounds=(0, 3))
-    assert a.bounds == [0, 3]
+    assert a.bounds == (0, 3)
+
+    with pytest.raises(AssertionError):
+        mod.parameter(-1, bounds=(0, 3))
+
+    with pytest.raises(AssertionError):
+        mod.parameter(2, bounds=(0, None))
 
 
 def test_parameter_rbounds():
     a = mod.parameter(1, rbounds=(0, 3))
-    assert a.rbounds == [0, 3]
+    assert a.rbounds == (0, 3)
+
+    a = mod.parameter(1, rbounds=1)
+    assert a.rbounds == (1, 1)
+
+    with pytest.raises(AssertionError):
+        mod.parameter(2, bounds=(0, None))
 
 
 def test_parameter__repr__():
     a = mod.parameter(value=3, uncertainty=1)
     assert a.__repr__() == 'parameter value: 3, uncertainty: 1'
-
-
-def test_parameter_change_unc_unit():
-    p = mod.parameter(5*u.kg, 500*u.g)
-    assert p.uncertainty.unit == u.kg
-
-    p.value = 3000 * u.g
-    assert p.uncertainty.unit == u.g
 
 
 def test_component_init():
@@ -106,7 +129,7 @@ def test_sersic_init():
     assert c.n.uncertainty == 7.5
     assert c.n.fixed is True
 
-
+'''
 def test_sersic_to_galfit():
     c = mod.sersic(
             1, 2, 3, 4, 7, 5, 6,
@@ -114,7 +137,7 @@ def test_sersic_to_galfit():
             fixed={'n': True})
 
     assert c.to_galfit() == ' 0) sersic                    # object name\n 1)   1.0000    2.0000  0  0 # position x, y\n 2)   3.0000         1        # total magnitude\n 3)   4.0000         1        # effective radius\n 4)   7.0000         0        # sersic index\n 8)   5.0000         1        # axis ratio\n 9)   6.0000         1        # position angle\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'
-
+'''
 
 def test_model_empty():
     m = mod.model()
@@ -162,8 +185,27 @@ def test_component_to_galfit():
     # assert c.constraints_to_galfit(1) == '\n         1  x                       0.5000 to   1.5000'
 
 
+def test_model_make_head():
+    psf = gw.psf(np.arange(4).reshape((2, 2)), 3, 2)
+    image = make_map()
+    model = mod.model()
+    constraints = ''
+    fitarea = ((1, 40), (2, 30))
+    head = model.make_head(0, image, psf, constraints, fitarea)
+
+
+def test_make_galfit_fitarea():
+    image = make_map()
+    fitarea = None
+    assert np.array_equal(((1, image.shape[1]), (1, image.shape[0])),
+                          mod.model.make_galfit_fitarea(fitarea, image))
+
+    fitarea = np.array(((1, 2), (3, 4)))
+    ref = fitarea.copy() + 1
+    assert np.array_equal(ref, mod.model.make_galfit_fitarea(fitarea))
+
+
 if __name__ == '__main__':
     from importlib import reload
     reload(mod)
-    c = test_component_to_galfit()
-    print(c)
+    c = test_make_galfit_fitarea()

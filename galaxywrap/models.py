@@ -1,6 +1,6 @@
-from astropy.modeling import Parameter
 from astropy.units import Quantity
 from . import utils
+import numpy as np
 
 
 class parameter(object):
@@ -42,21 +42,27 @@ class parameter(object):
 
     @property
     def bounds(self):
-        return utils.change_tuple_unit(self._bounds, self.unit)
+        return self._bounds
 
     @bounds.setter
     def bounds(self, bounds):
+        # TODO:
         utils.check_all_or_no_None(bounds)
-        self._bounds = utils.change_tuple_unit(bounds, self.unit)
+        if bounds[0] is not None:
+            assert self.value >= bounds[0]
+            assert self.value <= bounds[1]
+        self._bounds = bounds
 
     @property
     def rbounds(self):
-        return utils.change_tuple_unit(self._rbounds, self.unit)
+        return self._rbounds
 
     @rbounds.setter
     def rbounds(self, rbounds):
+        if not utils.isiterable(rbounds):
+            rbounds = (rbounds, rbounds)
         utils.check_all_or_no_None(rbounds)
-        self._rbounds = utils.change_tuple_unit(rbounds, self.unit)
+        self._rbounds = rbounds
 
     def _to_galfit(self, galfitcomponentnumber, parameternumber):
 
@@ -169,23 +175,23 @@ class psf(object):
 
 
 class model(object):
-    def __init__(self, models=None, skipinimage=False):
-        self.models = []
+    def __init__(self, components=None, skipinimage=False):
+        self.components = []
         self.skipinimage = []
 
-        if not isinstance(models, (list, tuple)):
-            models = [models]
+        if not isinstance(components, (list, tuple)):
+            components = [components]
 
         if not isinstance(skipinimage, (list, tuple)):
             skipinimage = [skipinimage]
 
-        if len(skipinimage) != len(models):
-            skipinimage = skipinimage * len(models)
+        if len(skipinimage) != len(components):
+            skipinimage = skipinimage * len(components)
 
-        assert len(skipinimage) == len(models)
+        assert len(skipinimage) == len(components)
 
-        for model, skip in zip(models, skipinimage):
-            self.add_component(model, skip)
+        for component, skip in zip(components, skipinimage):
+            self.add_component(component, skip)
 
     def _check_data_type(self, comp, skipinimage):
         assert isinstance(comp, component)
@@ -194,75 +200,88 @@ class model(object):
     def add_component(self, comp, skipinimage=False):
         if comp is not None:
             self._check_data_type(comp, skipinimage)
-            self.models.append(comp)
+            self.components.append(comp)
             self.skipinimage.append(skipinimage)
 
     def __len__(self):
-        assert len(self.skipinimage) == len(self.models)
-        return len(self.models)
+        assert len(self.skipinimage) == len(self.components)
+        return len(self.components)
 
     def __getitem__(self, key):
-        return self.models[key]
+        return self.components[key]
 
     def __setitem__(self, key, value):
         if not isinstance(value, (list, tuple)):
             value = (value, False)
 
         self._check_data_type(*value)
-        self.models[key] = value[0]
+        self.components[key] = value[0]
         self.skipinimage[key] = value[1]
 
     def __delitem__(self, key):
-        self.models.__delitem__(key)
+        self.components.__delitem__(key)
         self.skipinimage.__delitem__(key)
 
     def __iter__(self):
-        return self.models.__iter__()
+        return self.components.__iter__()
 
-    def extend(self):
-        pass
+    def extend(self, *models):
+        for model in models:
+            for component, skipinimage in zip(model.components,
+                                              model.skipinimage):
+                self.append(component, skipinimage)
 
     def _add_skip_in_image(self, skipinimage):
         self._skipinimage.append(skipinimage)
 
-    def fit(self, *args, **kwargs):
+    def fit(self, image, psf, gconstraints, fitarea):
         '''fit model to data. input:
         map with properties, psf, fitarea
 
         returns
         new model with fit results and log
         '''
-        return self._start_galfitrun(0, *args, **kwargs)
+        return self._start_galfitrun(0, image, psf, gconstraints, fitarea)
 
-    def make(self, *args, **kwargs):
-        return self._start_galfitrun(2, *args, **kwargs)
+    def make(self, image, psf):
+        return self._start_galfitrun(2, image, psf)
 
     def _make_global_constraints(self, gconstraints):
         return ''
 
-    def _start_galfitrun(self, mode, map, psf, gconstraints):
+    @staticmethod
+    def make_galfit_fitarea(fitarea=None, image=None):
+        if fitarea is None:
+            ylen, xlen = image.shape
+            fitarea = np.array(((0, xlen-1), (0, ylen-1)))
+
+        fitarea = np.array(fitarea) + 1
+        return fitarea
+
+    def _start_galfitrun(self, mode, image, psf, gconstraints, fitarea=None):
         entries = ''
         constraints = self._make_global_constraints(gconstraints)
         for i, (component, skip) in enumerate(zip(self, self.skipinimage)):
             entry, constraint = component.to_galfit()
             entries += entry
             constraints += constraint
-        pass
 
-    def _make_head(image, psf, constraints):
+    @staticmethod
+    def make_head(runoption, image, psf, constraints, fitarea):
+        fitarea = model.make_galfit_fitarea(fitarea, image)
         unc = image.uncertainty
         head = '# IMAGE and GALFIT CONTROL PARAMETERS'
-        head += 'A) inimg.fits'
-        head += 'B) imgblock.fits'
-        head += 'C) {}'.format('sigma.fits' if unc is not None else 'none')
-        head += 'D) {}'.format('psf.fits' if psf is not None else 'none')
-        head += 'E) {}'.format(1 if psf is None else psf.finesampling)
-        head += 'F) {}'.format('none' if image.mask is None else 'mask.fits')
-        head += 'G) {}'.format('none' if constraints == '' else 'mask.fits')
-        head += 'H) {}   {}   {}   {}'.format(*image.fitregion_x,
-                                              *image.fitregion_y)
-        head += 'I) convolutionboxdings'
-        head += 'J) zeropoint'
-        head += 'K) plate_scale'
-        head += 'O) displaytype'
-        head += 'P) optimize, model, imgblock,  subcomps (0-3)'
+        head += '\nA) inimg.fits'
+        head += '\nB) imgblock.fits'
+        head += '\nC) {}'.format('sigma.fits' if unc is not None else 'none')
+        head += '\nD) {}'.format('psf.fits' if psf is not None else 'none')
+        head += '\nE) {}'.format(1 if psf is None else psf.finesampling)
+        head += '\nF) {}'.format('none' if image.mask is None else 'mask.fits')
+        head += '\nG) {}'.format('none' if constraints == '' else 'mask.fits')
+        head += '\nH) {}   {}   {}   {}'.format(*fitarea[0], *fitarea[1])
+        head += '\nI) {}  {}'.format(*psf.convolutionbox)
+        head += '\nJ) {}'.format(image.properties.magzpt)
+        head += '\nK) {}  {}'.format(*image.properties.platescale)
+        head += '\nO) {}'.format('regular')
+        head += '\nP) {}'.format(runoption)
+        return head
