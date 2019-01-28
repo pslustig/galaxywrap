@@ -1,6 +1,7 @@
 from astropy.units import Quantity
 from . import utils
 import numpy as np
+from . import core
 
 
 class parameter(object):
@@ -126,7 +127,7 @@ class component(object):
         body += '\n Z) {:d}                         # {}'.format(
                 skipinimage, 'Skip this model in output image?(yes=1, no=0)')
 
-        return body
+        return body, constraints
 
 
 class analytic_component(component):
@@ -234,7 +235,7 @@ class model(object):
     def _add_skip_in_image(self, skipinimage):
         self._skipinimage.append(skipinimage)
 
-    def fit(self, image, psf, gconstraints, fitarea):
+    def fit(self, image, psf, gconstraints, fitarea=None, **kwargs):
         '''fit model to data. input:
         map with properties, psf, fitarea
 
@@ -243,7 +244,7 @@ class model(object):
         '''
         return self._start_galfitrun(0, image, psf, gconstraints, fitarea)
 
-    def make(self, image, psf):
+    def make(self, image, psf, **kwargs):
         return self._start_galfitrun(2, image, psf)
 
     def _make_global_constraints(self, gconstraints):
@@ -258,13 +259,20 @@ class model(object):
         fitarea = np.array(fitarea) + 1
         return fitarea
 
-    def _start_galfitrun(self, mode, image, psf, gconstraints, fitarea=None):
+    def _start_galfitrun(self, mode, image, psf, gconstraints, fitarea,
+                         **kwargs):
         entries = ''
         constraints = self._make_global_constraints(gconstraints)
+
         for i, (component, skip) in enumerate(zip(self, self.skipinimage)):
-            entry, constraint = component.to_galfit()
+            entry, constraint = component._to_galfit(i)
             entries += entry
             constraints += constraint
+
+        head = self.make_head(mode, image, psf, constraints, fitarea)
+        feedme = head + '\n' + entries
+
+        return core.fit(feedme, image, psf, constraints, **kwargs)
 
     @staticmethod
     def make_head(runoption, image, psf, constraints, fitarea):

@@ -48,7 +48,8 @@ def read_value_or_warn(keys, header):
             break
 
     if value is None:
-        warnings.warn('value with key(s) {} not found, must be set manually')
+        warnings.warn(
+           'value with key(s) {} not found, must be set manually'.format(keys))
 
     return value
 

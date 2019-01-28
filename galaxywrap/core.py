@@ -2,6 +2,7 @@ from pathlib import Path
 import logging
 import subprocess
 from astropy.io import fits
+import os
 
 
 def make_galfit_directory(where, exist_ok=False):
@@ -20,33 +21,38 @@ def make_galfit_directory(where, exist_ok=False):
     return subdir
 
 
-def make_directory_and_files(feedme, image, psf, mask, constraints, where):
+def make_galfit_files(feedme, image, psf, constraints, directory):
 
-    where = make_galfit_directory(where)
-
-    with open(where / 'galfit.feedme', 'w') as outconf:
+    with open(directory / 'galfit.feedme', 'w') as outconf:
         outconf.write(feedme)
 
     fits.PrimaryHDU(image, header=image.to_header()).writeto(
-                                                        where/'inimg.fits')
+                                                        directory/'inimg.fits')
     if image.uncertainty is not None:
-        fits.PrimaryHDU(image.uncertainty.array).writeto(where/'sigma.fits')
+        fits.PrimaryHDU(image.uncertainty.array).writeto(
+                                                directory/'sigma.fits')
 
     if psf is not None:
-        fits.PrimaryHDU(psf.data).writeto(where/'psf.fits')
+        fits.PrimaryHDU(psf.data).writeto(directory/'psf.fits')
 
     if image.mask is not None:
-        fits.PrimaryHDU(image.mask.astype(int)).writeto(where/'mask.fits')
+        fits.PrimaryHDU(image.mask.astype(int)).writeto(directory/'mask.fits')
 
     if constraints is not None:
-        with open(where/'constraints.txt', 'w') as outconst:
+        with open(directory/'constraints.txt', 'w') as outconst:
             outconst.write(constraints)
 
-    return where
+    return directory
 
 
-def fit(directory, verbose=False):
-    cmd = ['galfit', 'galfit.feedme']
+def fit(feedme, image, psf, constraints, **kwargs):
+    # add verbose
+    verbose = kwargs.pop('verbose', False)
+    directory = kwargs.pop('directory', '/tmp')
+    directory = make_galfit_directory(directory)
+    make_galfit_files(feedme, image, psf, constraints, directory)
+
+    cmd = [galfitcmd, 'galfit.feedme']
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, ""):
@@ -56,7 +62,12 @@ def fit(directory, verbose=False):
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
+    return read_results(directory)
 
-def read_results():
+
+def read_results(directory):
     # galfit parser umbau, soll model einlesen
-    pass
+    return 0
+
+
+galfitcmd = os.environ['galfit']

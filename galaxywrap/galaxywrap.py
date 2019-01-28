@@ -1,6 +1,6 @@
 from . import models
 from . import utils
-from astropy.nddata import NDDataArray
+from astropy.nddata import NDDataArray, StdDevUncertainty
 import numpy as np
 from astropy import wcs
 from astropy.io import fits
@@ -44,6 +44,12 @@ class imageproperties(object):
 
         self._platescale = platescale
 
+    def __repr__(self):
+        items = self.__dict__.items()
+        out = '\n'.join('{}: {}'.format(key.replace('_', ''), value) for key,
+                        value in items)
+        return out
+
     @classmethod
     def read(cls, header, *args, **kwargs):
         if not isinstance(header, fits.header.Header):
@@ -86,6 +92,29 @@ class image(NDDataArray):
     def __array__(self):
         """  Overrite NDData.__array__ to force for MaskedArray output  """
         return np.ma.array(self.data, mask=self.mask)
+
+    @classmethod
+    def read(cls, filename, dataidx=0, headeridx=None, maskidx=None,
+             uncidx=None):
+
+        mask = None
+        uncertainty = None
+
+        if headeridx is None:
+            headeridx = dataidx
+
+        with fits.open(filename) as hdul:
+            data = hdul[dataidx].data
+            imgprops = imageproperties.read(
+                    fits.header.Header(hdul[headeridx].header))
+            if maskidx is not None:
+                mask = hdul[maskidx].data.astype(bool)
+
+            if uncidx is not None:
+                uncertainty = StdDevUncertainty(hdul[uncidx].data)
+
+        return cls(data, properties=imgprops, mask=mask,
+                   uncertainty=uncertainty)
 
 
 class psf(NDDataArray):
