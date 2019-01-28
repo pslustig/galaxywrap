@@ -12,7 +12,7 @@ To install this package, type the following lines in a terminal
 .. code:: bash
 
     git clone https://github.com/pslustig/galaxywrap.git
-    pip install -e observation
+    pip install -e galaxywrap
 
 or directly install it from git
 
