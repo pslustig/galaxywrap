@@ -49,6 +49,7 @@ def make_galfit_files(feedme, image, psf, constraints, directory):
 def fit(feedme, image, psf, constraints, **kwargs):
     # add verbose
     verbose = kwargs.pop('verbose', False)
+    deletefiles = kwargs.pop('deletefiles', True)
     directory = kwargs.pop('directory', '/tmp')
     directory = make_galfit_directory(directory)
     make_galfit_files(feedme, image, psf, constraints, directory)
@@ -68,17 +69,104 @@ def fit(feedme, image, psf, constraints, **kwargs):
     return directory
 
 
-def read_results(directory):
+def read_results(directory, filename='imgblock.fits'):
+    with fits.open(Path(directory)/filename) as hdul:
+        header = fits.header.Header(hdul[2].header)
+        model = hdul[2].data
+        residuals = hdul[3].data
 
-    # galfit parser umbau, soll model einlesen
+    ncomponents = get_number_of_component(header)
+
     return 0
 
 
+def get_number_of_component(header):
+    ncomps = 1
+    while True:
+        if "COMP_" + str(ncomps + 1) in header:
+            ncomps = ncomps + 1
+        else:
+            break
+    return ncomps
+
+
+def make_component_packs(header):
+    ''' takes whole header and appends all lines that belong so one single
+        componend as a new item to a list '''
+    components = []
+    compidx = 1
+    incomponent = False
+
+    for i, (key, value) in enumerate(header.items()):
+        _incomponent = is_part_of_component(key, compidx)
+
+        if is_newcomponent(incomponent, _incomponent):
+            startidx = i
+        elif is_end_of_component(incomponent, _incomponent):
+            components.append(header[startidx:i])
+            compidx += 1
+
+        incomponent = _incomponent
+
+    return components
+
+
+def make_component_from_cleaned_header(header, idx):
+    parameters = {}
+    uncertainties = {}
+    modelname = header.pop('COMP_{}'.format(idx+1)).rstrip()
+    for key, value in header.items():
+        # read values and errors and put them in parameters and error dicts
+        # 'flags?'
+        pass
+
+
+class keywordtranslator(object):
+    def __init__(self):
+        self.python = ['r', 'ratio']
+        self.galfit = ['RE', 'RA']
+
+    @classmethod
+    def to_python(cls, key):
+        trans = cls()
+        if key in trans.galfit:
+            key = trans.python[trans.galfit.index(key)]
+
+        return key.lower()
+
+    @classmethod
+    def to_galfit(cls, key):
+        trans = cls()
+        if key in trans.python:
+            key = trans.galfit[trans.python.index(key)]
+
+        return key.upper()
+
+
+
+def is_part_of_component(key, idx):
+    ispart = False
+    if key.startswith('{}_'.format(idx)) or (key == 'COMP_{}'.format(idx)):
+        ispart = True
+    return ispart
+
+
+def is_newcomponent(incomponent_before, incomponent_now):
+    isnew = False
+    if (not incomponent_before) and incomponent_now:
+        isnew = True
+
+    return isnew
+
+
+def is_end_of_component(incomponent_before, incomponent_now):
+    isend = False
+    if incomponent_before and (not incomponent_now):
+        isend = True
+
+    return isend
+
 import re
-import numpy as np
-
-from astropy.io import fits
-
 
 class GalfitComponent(object):
     """Stores results from one component of the fit."""
