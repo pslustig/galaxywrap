@@ -21,7 +21,8 @@ class imageproperties(object):
 
     '''
 
-    def __init__(self, magzpt, exptime, platescale, gain, ncombine, unit):
+    def __init__(self, magzpt=None, exptime=None, platescale=None, gain=None,
+                 ncombine=None, unit=None):
         self.magzpt = magzpt
         self.exptime = exptime
         self.platescale = platescale
@@ -85,7 +86,7 @@ class image(NDDataArray):
 
     def __init__(self, data, *args, **kwargs):
 
-        properties = kwargs.pop('properties')
+        properties = kwargs.pop('properties', imageproperties())
         super(image, self).__init__(data, *args, **kwargs)
         self.properties = properties
 

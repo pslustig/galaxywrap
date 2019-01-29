@@ -51,7 +51,6 @@ def fit(feedme, image, psf, constraints, **kwargs):
     verbose = kwargs.pop('verbose', False)
     directory = kwargs.pop('directory', '/tmp')
     directory = make_galfit_directory(directory)
-    # print('created directory '.format(str(directory)))
     make_galfit_files(feedme, image, psf, constraints, directory)
 
     cmd = [galfitcmd, 'galfit.feedme']
@@ -66,7 +65,7 @@ def fit(feedme, image, psf, constraints, **kwargs):
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
-    return read_results(directory)
+    return directory
 
 
 def read_results(directory):
