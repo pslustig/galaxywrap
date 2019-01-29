@@ -50,12 +50,12 @@ def fit(feedme, image, psf, constraints, **kwargs):
     verbose = kwargs.pop('verbose', False)
     directory = kwargs.pop('directory', '/tmp')
     directory = make_galfit_directory(directory)
-    print('created directory '.format(str(directory)))
+    # print('created directory '.format(str(directory)))
     make_galfit_files(feedme, image, psf, constraints, directory)
 
     cmd = [galfitcmd, 'galfit.feedme']
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             universal_newlines=True)
+                             universal_newlines=True, cwd=directory)
     '''
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line
