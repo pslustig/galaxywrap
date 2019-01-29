@@ -26,7 +26,7 @@ def make_galfit_files(feedme, image, psf, constraints, directory):
     with open(directory / 'galfit.feedme', 'w') as outconf:
         outconf.write(feedme)
 
-    fits.PrimaryHDU(image, header=image.to_header()).writeto(
+    fits.PrimaryHDU(image, header=image.properties.to_header()).writeto(
                                                         directory/'inimg.fits')
     if image.uncertainty is not None:
         fits.PrimaryHDU(image.uncertainty.array).writeto(
@@ -50,14 +50,17 @@ def fit(feedme, image, psf, constraints, **kwargs):
     verbose = kwargs.pop('verbose', False)
     directory = kwargs.pop('directory', '/tmp')
     directory = make_galfit_directory(directory)
+    print('created directory '.format(str(directory)))
     make_galfit_files(feedme, image, psf, constraints, directory)
 
     cmd = [galfitcmd, 'galfit.feedme']
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              universal_newlines=True)
+    '''
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line
     popen.stdout.close()
+    '''
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)

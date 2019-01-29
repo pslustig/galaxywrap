@@ -204,6 +204,9 @@ class model(object):
             self.components.append(comp)
             self.skipinimage.append(skipinimage)
 
+    def __repr__(self):
+        return 'galfit model containing {} component(s)'.format(len(self))
+
     def __len__(self):
         assert len(self.skipinimage) == len(self.components)
         return len(self.components)
