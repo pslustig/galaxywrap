@@ -83,30 +83,31 @@ class parameter(object):
         return value, constraints
 
 
-def make_parameter(name, description, value, uncertainties, fixeddict,
-                   bounddict, rbounddict):
-    p = parameter(value, uncertainties.pop(name, None), name=name,
-                  description=description, fixed=fixeddict.pop(name, False),
-                  bounds=bounddict.pop(name, (None, None)),
-                  rbounds=rbounddict.pop(name, (None, None)))
-    return p
-
-
 class component(object):
-    # TODO: create boundary constraints
-    def __init__(self, name, x, y, mag, uncertainties, fixed, bounds, rbounds):
+    def __init__(self, name, values, names, descriptions, uncertainties, fixed,
+                 bounds, rbounds):
+
         self.name = name
 
-        values = [x, y, mag]
-        names = ['x', 'y', 'mag']
-        descriptions = ['position x', 'position y', 'total magnitude']
-
         for value, name, description in zip(values, names, descriptions):
-            param = make_parameter(name, description, value, uncertainties,
-                                   fixed, bounds, rbounds)
+            param = self.make_parameter(name, description, value,
+                                        uncertainties, fixed, bounds, rbounds)
             self.__setattr__(name, param)
 
-        self._parameters = [self.x, self.y, self.mag]
+        self._parameters = []
+
+    def __repr__(self):
+        return self._to_galfit(0)[0]
+
+    @staticmethod
+    def make_parameter(name, description, value, uncertainties, fixeddict,
+                       bounddict, rbounddict):
+        p = parameter(value, uncertainties.pop(name, None), name=name,
+                      description=description,
+                      fixed=fixeddict.pop(name, False),
+                      bounds=bounddict.pop(name, (None, None)),
+                      rbounds=rbounddict.pop(name, (None, None)))
+        return p
 
     def _to_galfit(self, componentnumber, skipinimage=False):
         componentnumber += 1    # galfit starts counting with 1
@@ -119,7 +120,7 @@ class component(object):
 
         for i, parameter in enumerate(self._parameters):
             if parameter is not None:
-                pvalue, pconstr = parameter._to_galfit(componentnumber, i)
+                pvalue, pconstr = parameter._to_galfit(componentnumber, i+1)
                 constraints += pconstr
                 if i > 1:
                     body += pvalue
@@ -134,17 +135,14 @@ class analytic_component(component):
     def __init__(self, name, x, y, mag, r, ratio, pa, uncertainties,
                  fixed, bounds, rbounds):
 
-        super().__init__(name, x, y, mag, uncertainties, fixed, bounds,
-                         rbounds)
+        values = [x, y, mag, r, ratio, pa]
+        names = ['x', 'y', 'mag', 'r', 'ratio', 'pa']
+        descriptions = ['position x', 'position y', 'absolute magnitude',
+                        'effective radius', 'axis ratio', 'position angle']
 
-        values = [r, ratio, pa]
-        names = ['r', 'ratio', 'pa']
-        descriptions = ['effective radius', 'axis ratio', 'position angle']
-
-        for value, name, description in zip(values, names, descriptions):
-            param = make_parameter(name, description, value, uncertainties,
-                                   fixed, bounds, rbounds)
-            self.__setattr__(name, param)
+        super(analytic_component, self).__init__(
+                            name, values, names, descriptions, uncertainties,
+                            fixed, bounds, rbounds)
 
         self._parameters = [self.x, self.y, self.mag, self.r, None, None,
                             None, None, self.ratio, self.pa]
@@ -153,18 +151,46 @@ class analytic_component(component):
 class sersic(analytic_component):
     def __init__(self, x, y, mag, r, n, ratio, pa, uncertainties={}, fixed={},
                  bounds={}, rbounds={}):
-        super().__init__('sersic', x, y, mag, r, ratio, pa, uncertainties,
-                         fixed, bounds, rbounds)
+        super(sersic, self).__init__('sersic', x, y, mag, r, ratio, pa,
+                                     uncertainties, fixed, bounds, rbounds)
 
-        self.n = make_parameter('n', 'sersic index', n, uncertainties, fixed,
-                                bounds, rbounds)
+        self.n = self.make_parameter('n', 'sersic index', n, uncertainties,
+                                     fixed, bounds, rbounds)
 
         self._parameters = [self.x, self.y, self.mag, self.r, self.n, None,
                             None, None, self.ratio, self.pa]
 
 
-class sky(object):
-    pass
+class sky(component):
+    def __init__(self, bkg, dbkg_dx, dbkg_dy, uncertainties={}, fixed={},
+                 bounds={}, rbounds={}):
+
+        values = bkg, dbkg_dx, dbkg_dy
+        names = 'bkg', 'dbkg_dx', 'dbkg_dy'
+        descriptions = ('bkg value at center of fitting region [ADUs]',
+                        'dbkg / dx (bkg gradient in x)',
+                        'dbkg / dy (bkg gradient in y)')
+
+        super(sky, self).__init__('sky', values, names, descriptions,
+                                  uncertainties, fixed, bounds, rbounds)
+        self._parameters = [self.bkg, self.dbkg_dx, self.dbkg_dy]
+
+    def _to_galfit(self, componentnumber, skipinimage=False):
+        componentnumber += 1    # galfit starts counting with 1
+        constraints = ''
+
+        body = '# Component number: {}'.format(componentnumber)
+        body += '\n 0) {:25s} # object name'.format(self.name)
+
+        for i, parameter in enumerate(self._parameters):
+            pvalue, pconstr = parameter._to_galfit(componentnumber, i+1)
+            constraints += pconstr
+            body += pvalue
+
+        body += '\n Z) {:d}                         # {}'.format(
+                skipinimage, 'Skip this model in output image?(yes=1, no=0)')
+
+        return body, constraints
 
 
 class gaussian(object):
@@ -269,7 +295,7 @@ class model(object):
 
         for i, (component, skip) in enumerate(zip(self, self.skipinimage)):
             entry, constraint = component._to_galfit(i)
-            entries += entry
+            entries += '\n\n' + entry
             constraints += constraint
 
         head = self.make_head(mode, image, psf, constraints, fitarea)
