@@ -2,6 +2,7 @@ from astropy.units import Quantity
 from . import utils
 import numpy as np
 from . import core
+import galfitParser
 
 
 class parameter(object):
@@ -116,7 +117,7 @@ class component(object):
         body = '# Component number: {}'.format(componentnumber)
         body += '\n 0) {:25s} # object name'.format(self.name)
         body += '\n 1) {:8.4f}  {:8.4f}  {:d}  {:d} # position x, y'.format(
-                self.x.value, self.y.value, not self.x.fixed, not self.y.fixed)
+            self.x.value+1, self.y.value+1, not self.x.fixed, not self.y.fixed)
 
         for i, parameter in enumerate(self._parameters):
             if parameter is not None:
@@ -271,7 +272,7 @@ class model(object):
         returns
         new model with fit results and log
         '''
-        return self._start_galfitrun(0, image, psf, gconstraints, fitarea)
+        return self._start_galfitrun(0, image, psf, gconstraints, fitarea, **kwargs)
 
     def make(self, image, psf, **kwargs):
         return self._start_galfitrun(2, image, psf)
@@ -305,6 +306,11 @@ class model(object):
 
     @staticmethod
     def make_head(runoption, image, psf, constraints, fitarea):
+
+        convbox = (0, 0)
+        if psf is not None:
+            convbox = psf.convolutionbox
+
         fitarea = model.make_galfit_fitarea(fitarea, image)
         unc = image.uncertainty
         head = '# IMAGE and GALFIT CONTROL PARAMETERS'
@@ -316,7 +322,8 @@ class model(object):
         head += '\nF) {}'.format('none' if image.mask is None else 'mask.fits')
         head += '\nG) {}'.format('none' if constraints == '' else 'mask.fits')
         head += '\nH) {}   {}   {}   {}'.format(*fitarea[0], *fitarea[1])
-        head += '\nI) {}  {}'.format(*psf.convolutionbox)
+        head += '\nI) {}  {}'.format(*convbox)
+        # head += '\nI) {}  {}'.format(*psf.convolutionbox)
         head += '\nJ) {}'.format(image.properties.magzpt)
         head += '\nK) {}  {}'.format(*image.properties.platescale)
         head += '\nO) {}'.format('regular')
