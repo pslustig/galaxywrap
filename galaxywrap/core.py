@@ -4,6 +4,9 @@ import subprocess
 from astropy.io import fits
 import os
 import re
+import numpy as np
+from astropy.table import Table, vstack
+from shutil import rmtree
 
 
 def make_galfit_directory(where, exist_ok=False):
@@ -66,18 +69,62 @@ def fit(feedme, image, psf, constraints, **kwargs):
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
-    return directory
+    # maybe just read everything if fit is done and just load mode if sources
+    # are made
+    results = read_results(directory)
+
+    if deletefiles:
+        rmtree(directory)
+
+    return results
 
 
 def read_results(directory, filename='imgblock.fits'):
     with fits.open(Path(directory)/filename) as hdul:
         header = fits.header.Header(hdul[2].header)
         model = hdul[2].data
-        residuals = hdul[3].data
+        # residuals = hdul[3].data
 
-    ncomponents = get_number_of_component(header)
+    fitstats = read_fitstats_from_header(header)
+    components = read_components_from_header(header)
+    return components, fitstats, model
 
-    return 0
+
+def read_fitstats_from_header(header):
+
+    stats = {}
+    stats['magzpt'] = header["MAGZPT"]
+
+    fitreg = header["FITSECT"]
+    fitreg = re.findall(r"[\w']+", fitreg)
+    stats['box_x0'] = fitreg[0]
+    stats['box_x1'] = fitreg[1]
+    stats['box_y0'] = fitreg[2]
+    stats['box_y1'] = fitreg[3]
+
+    # Convolution box
+    convbox = header["CONVBOX"]
+    convbox = convbox.split(",")
+    stats['convbox_x'] = convbox[0]
+    stats['self.convbox_y'] = convbox[1]
+
+    # Read in the chi-square value
+    stats['chisq'] = header["CHISQ"]
+    stats['ndof'] = header["NDOF"]
+    stats['nfree'] = header["NFREE"]
+    stats['reduced_chisq'] = header["CHI2NU"]
+
+    return stats
+
+
+def read_components_from_header(header):
+    components_packs = make_component_packs(header)
+    components = Table()
+    for i, componentheader in enumerate(components_packs):
+        components = vstack(
+          [components, make_component_from_cleaned_header(componentheader, i)])
+
+    return components
 
 
 def get_number_of_component(header):
@@ -112,19 +159,82 @@ def make_component_packs(header):
 
 
 def make_component_from_cleaned_header(header, idx):
-    parameters = {}
-    uncertainties = {}
-    modelname = header.pop('COMP_{}'.format(idx+1)).rstrip()
+    translator = keywordtranslator()
+    compname = header.pop('COMP_{}'.format(idx+1)).rstrip()
+
+    t = Table()
+    t['comp'] = [compname]
     for key, value in header.items():
-        # read values and errors and put them in parameters and error dicts
-        # 'flags?'
-        pass
+        name = translator.to_python(key.replace('{}_'.format(idx+1), ''))
+        add_parameter_to_table(t, name, *read_parameter(value))
+
+    return t
+
+
+def add_parameter_to_table(table, name, value, uncertainty, flag):
+    table[name] = [value]
+    table['{}_unc'.format(name)] = [uncertainty]
+    table['{}_flag'.format(name)] = [flag]
+
+
+def isconstrained(headerentry):
+    isconstrained = False
+    if "{" in headerentry and "}" in headerentry:
+        isconstrained = True
+    return isconstrained
+
+
+def isfixed(headerentry):
+    isfixed = False
+    if "[" in headerentry and "]" in headerentry:
+        isfixed = True
+    return isfixed
+
+
+def isproblematic(headerentry):
+    isproblematic = False
+    if '*' in headerentry:
+        isproblematic = True
+    return isproblematic
+
+
+def remove_and_split_string(string, *removechars):
+    for char in removechars:
+        string = string.replace(char, '')
+
+    return string.split()
+
+
+def read_parameter(headerentry):
+    flag = ''
+    uncertainty = -1
+
+    if isconstrained(headerentry):
+        flag = 'constrained'
+        strval = remove_and_split_string(headerentry, '{', '}')
+
+    elif isfixed(headerentry):
+        flag = 'fixed'
+        strval = remove_and_split_string(headerentry, '[', ']')
+
+    elif isproblematic(headerentry):
+        flag = 'problematic'
+        strval = remove_and_split_string(headerentry, '*')
+        uncertainty = np.nan
+
+    else:
+        strval = remove_and_split_string(headerentry)
+        uncertainty = float(strval[2])
+
+    value = float(strval[0])
+
+    return value, uncertainty, flag
 
 
 class keywordtranslator(object):
     def __init__(self):
-        self.python = ['r', 'ratio']
-        self.galfit = ['RE', 'RA']
+        self.python = ['r', 'x', 'y']
+        self.galfit = ['RE', 'XC', 'YC']
 
     @classmethod
     def to_python(cls, key):
@@ -141,7 +251,6 @@ class keywordtranslator(object):
             key = trans.galfit[trans.python.index(key)]
 
         return key.upper()
-
 
 
 def is_part_of_component(key, idx):
@@ -165,129 +274,6 @@ def is_end_of_component(incomponent_before, incomponent_now):
         isend = True
 
     return isend
-
-import re
-
-class GalfitComponent(object):
-    """Stores results from one component of the fit."""
-
-    def __init__(self, galfitheader, component_number, verbose=True):
-        """
-        Read GALFIT results from output file.
-        takes in the fits header from HDU 3 (the galfit model) from a
-        galfit output file and the component number to extract
-        """
-        assert component_number > 0
-        assert "COMP_" + str(component_number) in galfitheader
-
-        self.component_type = galfitheader["COMP_" + str(component_number)]
-        self.component_number = component_number
-        headerkeys = [i for i in galfitheader.keys()]
-        comp_params = []
-
-        for i in headerkeys:
-            if str(component_number) + '_' in i:
-                comp_params.append(i)
-
-        setattr(self, 'good', True)
-        for param in comp_params:
-            paramsplit = param.split('_')
-            val = galfitheader[param]
-
-            if "{" in val and "}" in val:
-                print(" ## One parameter is constrained !")
-                val = val.replace('{', '')
-                val = val.replace('}', '')
-                val = val.split()
-                print(" ## Param - Value : ", param, val)
-                setattr(self, paramsplit[1].lower(), float(val[0]))
-                setattr(self, paramsplit[1].lower() + '_err', np.nan)
-            elif "[" in val and "]" in val:
-                print(" ## One parameter is fixed !")
-                val = val.replace('[', '')
-                val = val.replace(']', '')
-                val = val.split()
-                print(" ## Param - Value : ", param, val)
-                setattr(self, paramsplit[1].lower(), float(val[0]))
-                setattr(self, paramsplit[1].lower() + '_err', np.nan)
-            elif "*" in val:
-                print(" ## One parameter is problematic !")
-                val = val.replace('*', '')
-                val = val.split()
-                print(" ## Param - Value : ", param, val)
-                setattr(self, paramsplit[1].lower(), float(val[0]))
-                setattr(self, paramsplit[1].lower() + '_err', -1.0)
-                setattr(self, 'good', True)
-            else:
-                val = val.split()
-                setattr(self, paramsplit[1].lower(), float(val[0]))
-                setattr(self, paramsplit[1].lower() + '_err', float(val[2]))
-
-
-class GalfitResults(object):
-
-    """
-    This class stores galfit results information.
-    Currently only does one component
-    """
-
-    def __init__(self, galfitheader):
-        """
-        Init method for GalfitResults.
-        Take in a string that is the name of the galfit output fits file
-        """
-        # Now some checks to make sure the file is what we are expecting
-        # galfit_in_comments = False
-        # for i in galfitheader['COMMENT']:
-        #     galfit_in_comments = galfit_in_comments or "GALFIT" in i
-        # assert True == galfit_in_comments
-        # assert "COMP_1" in galfitheader
-        # Now we've convinced ourselves that this is probably a galfit file
-
-        # Read in the input parameters
-        # self.input_initfile = galfitheader['INITFILE']
-        # self.input_datain = galfitheader["DATAIN"]
-        # self.input_sigma = galfitheader["SIGMA"]
-        # self.input_psf = galfitheader["PSF"]
-        # self.input_constrnt = galfitheader["CONSTRNT"]
-        # self.input_mask = galfitheader["MASK"]
-        # self.input_magzpt = galfitheader["MAGZPT"]
-
-        # Fitting region
-        # fitsect = galfitheader["FITSECT"]
-        # fitsect = re.findall(r"[\w']+", fitsect)
-        # self.box_x0 = fitsect[0]
-        # self.box_x1 = fitsect[1]
-        # self.box_y0 = fitsect[2]
-        # self.box_y1 = fitsect[3]
-
-        # Convolution box
-        # convbox = galfitheader["CONVBOX"]
-        # convbox = convbox.split(",")
-        # self.convbox_x = convbox[0]
-        # self.convbox_y = convbox[1]
-
-        # Read in the chi-square value
-        # self.chisq = galfitheader["CHISQ"]
-        # self.ndof = galfitheader["NDOF"]
-        # self.nfree = galfitheader["NFREE"]
-        # self.reduced_chisq = galfitheader["CHI2NU"]
-        # self.logfile = galfitheader["LOGFILE"]
-
-        # Find the number of components
-        num_components = 1
-        while True:
-            if "COMP_" + str(num_components + 1) in galfitheader:
-                num_components = num_components + 1
-            else:
-                break
-        self.num_components = num_components
-
-        for i in range(1, self.num_components + 1):
-            setattr(self, "component_" + str(i),
-                    GalfitComponent(galfitheader, i),
-                    )
-
 
 
 galfitcmd = os.environ['galfit']

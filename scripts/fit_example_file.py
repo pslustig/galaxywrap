@@ -4,7 +4,8 @@ from astropy.io import fits
 import warnings
 
 
-datadir = Path().home() / 'Documents/galaxywrap/galaxywrap/tests/files'
+datadir = Path().home() / 'Documents/galaxywrap/galaxywrap/tests/files' # mac
+datadir = Path().home() / 'projects/galaxywrap/galaxywrap/tests/files' # uni
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore', UserWarning)
@@ -16,4 +17,4 @@ model = gw.models.model(component)
 model.add_component(gw.models.sky(1.3920, 0, 0,
                                   fixed={'dbkg_dx': True, 'dbkg_dy': True}))
 
-model.fit(img, psf, '')
+res = model.fit(img, psf, '')

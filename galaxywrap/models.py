@@ -133,11 +133,11 @@ class component(object):
 
 
 class analytic_component(component):
-    def __init__(self, name, x, y, mag, r, ratio, pa, uncertainties,
+    def __init__(self, name, x, y, mag, r, ar, pa, uncertainties,
                  fixed, bounds, rbounds):
 
-        values = [x, y, mag, r, ratio, pa]
-        names = ['x', 'y', 'mag', 'r', 'ratio', 'pa']
+        values = [x, y, mag, r, ar, pa]
+        names = ['x', 'y', 'mag', 'r', 'ar', 'pa']
         descriptions = ['position x', 'position y', 'absolute magnitude',
                         'effective radius', 'axis ratio', 'position angle']
 
@@ -146,20 +146,20 @@ class analytic_component(component):
                             fixed, bounds, rbounds)
 
         self._parameters = [self.x, self.y, self.mag, self.r, None, None,
-                            None, None, self.ratio, self.pa]
+                            None, None, self.ar, self.pa]
 
 
 class sersic(analytic_component):
-    def __init__(self, x, y, mag, r, n, ratio, pa, uncertainties={}, fixed={},
+    def __init__(self, x, y, mag, r, n, ar, pa, uncertainties={}, fixed={},
                  bounds={}, rbounds={}):
-        super(sersic, self).__init__('sersic', x, y, mag, r, ratio, pa,
+        super(sersic, self).__init__('sersic', x, y, mag, r, ar, pa,
                                      uncertainties, fixed, bounds, rbounds)
 
         self.n = self.make_parameter('n', 'sersic index', n, uncertainties,
                                      fixed, bounds, rbounds)
 
         self._parameters = [self.x, self.y, self.mag, self.r, self.n, None,
-                            None, None, self.ratio, self.pa]
+                            None, None, self.ar, self.pa]
 
 
 class sky(component):
@@ -323,7 +323,6 @@ class model(object):
         head += '\nG) {}'.format('none' if constraints == '' else 'mask.fits')
         head += '\nH) {}   {}   {}   {}'.format(*fitarea[0], *fitarea[1])
         head += '\nI) {}  {}'.format(*convbox)
-        # head += '\nI) {}  {}'.format(*psf.convolutionbox)
         head += '\nJ) {}'.format(image.properties.magzpt)
         head += '\nK) {}  {}'.format(*image.properties.platescale)
         head += '\nO) {}'.format('regular')
