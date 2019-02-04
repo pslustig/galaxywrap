@@ -92,6 +92,14 @@ def test_add_parameter_to_table():
     assert r['a_flag'] == 'test'
 
 
+def test_test_if_all_symbols_in_string():
+    f = core.test_if_all_symbols_in_string
+    assert f('{}', '{', '}')
+    assert f('{}', '{')
+    assert not f('{', '{', '}')
+    assert not f('}', '{', '}')
+
+
 def test_make_component_from_cleaned_header():
     h = load_header()
     p = core.make_component_packs(h)[0]

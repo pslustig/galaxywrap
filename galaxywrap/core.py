@@ -177,18 +177,20 @@ def add_parameter_to_table(table, name, value, uncertainty, flag):
     table['{}_flag'.format(name)] = [flag]
 
 
+def test_if_all_symbols_in_string(string, *symbols):
+    isin = True
+    for symbol in symbols:
+        isin = isin and symbol in string
+
+    return isin
+
+
 def isconstrained(headerentry):
-    isconstrained = False
-    if "{" in headerentry and "}" in headerentry:
-        isconstrained = True
-    return isconstrained
+    return test_if_all_symbols_in_string(headerentry, '{', '}')
 
 
 def isfixed(headerentry):
-    isfixed = False
-    if "[" in headerentry and "]" in headerentry:
-        isfixed = True
-    return isfixed
+    return test_if_all_symbols_in_string(headerentry, '[', ']')
 
 
 def isproblematic(headerentry):
@@ -237,20 +239,21 @@ class keywordtranslator(object):
         self.galfit = ['RE', 'XC', 'YC']
 
     @classmethod
-    def to_python(cls, key):
+    def to_python(cls, key, inverse=False):
         trans = cls()
-        if key in trans.galfit:
-            key = trans.python[trans.galfit.index(key)]
+        a = trans.galfit
+        b = trans.python
+        if inverse:
+            a, b = b, a
+
+        if key in a:
+            key = b[a.index(key)]
 
         return key.lower()
 
     @classmethod
     def to_galfit(cls, key):
-        trans = cls()
-        if key in trans.python:
-            key = trans.galfit[trans.python.index(key)]
-
-        return key.upper()
+        return cls.to_python(key, inverse=True).upper()
 
 
 def is_part_of_component(key, idx):
