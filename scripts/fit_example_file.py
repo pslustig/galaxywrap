@@ -4,6 +4,11 @@ from astropy.io import fits
 import warnings
 
 
+# TODO: tests...
+# constraints
+# model and component reader. maybe kwargs to models then every input of table can be used.
+
+
 datadir = Path().home() / 'Documents/galaxywrap/galaxywrap/tests/files' # mac
 datadir = Path().home() / 'projects/galaxywrap/galaxywrap/tests/files' # uni
 
@@ -18,3 +23,4 @@ model.add_component(gw.models.sky(1.3920, 0, 0,
                                   fixed={'dbkg_dx': True, 'dbkg_dy': True}))
 
 res = model.fit(img, psf, '')
+res[0]
