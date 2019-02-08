@@ -279,4 +279,15 @@ def is_end_of_component(incomponent_before, incomponent_now):
     return isend
 
 
-galfitcmd = os.environ['galfit']
+def find_galfit_executable():
+    galfit = ''
+    try:
+        galfit = os.environ['galfit']
+    except KeyError:
+        logging.warn(('Galfit not found in environment. Set path manually by '
+                      'modifying the galfitcmd variable in core module.'))
+
+    return galfit
+
+
+galfitcmd = find_galfit_executable()
