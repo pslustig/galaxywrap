@@ -1,8 +1,7 @@
-from astropy.units import Quantity
 from . import utils
 import numpy as np
 from . import core
-import galfitParser
+from astropy.table import Table, hstack, vstack
 
 
 class parameter(object):
@@ -17,26 +16,6 @@ class parameter(object):
         self.fixed = fixed
         self.bounds = bounds
         self.rbounds = rbounds
-
-    @property
-    def uncertainty(self):
-        uncertainty = self._uncertainty
-        if isinstance(self.value, Quantity):
-            uncertainty = uncertainty.to(self.value.unit)
-        return uncertainty
-
-    @uncertainty.setter
-    def uncertainty(self, uncertainty):
-        if (uncertainty is not None) and isinstance(self.value, Quantity):
-                uncertainty = uncertainty.to(self.value.unit)
-        self._uncertainty = uncertainty
-
-    @property
-    def unit(self):
-        unit = None
-        if isinstance(self.value, Quantity):
-            unit = self.value.unit
-        return unit
 
     def __repr__(self):
         return 'parameter value: {}, uncertainty: {}'.format(
@@ -82,6 +61,52 @@ class parameter(object):
                               galfitcomponentnumber, name, *self.rbounds)
 
         return value, constraints
+
+    @classmethod
+    def value_or_nan_if_None(self, *values):
+        values = np.array(values, dtype=float)
+        for i, value in enumerate(values):
+            if value is None:
+                values[i] = np.nan
+
+        if len(values) == 1:
+            values = values[0]
+
+        return values
+
+    def _to_table(self, constraints=True):
+        '''
+        Save parameter values in table. Used to save models to table.
+        '''
+        unc = self.value_or_nan_if_None(self.uncertainty)
+        name = self.name
+
+        t = Table()
+        t[name] = [self.value]
+        t['{}_unc'.format(name)] = [unc]
+
+        if constraints:
+            leftrbound, rightrbound = self.value_or_nan_if_None(self.rbounds)
+            leftbound, rightrbound = self.value_or_nan_if_None(self.bounds)
+
+            t['{}_fixed'.format(name)] = [self.fixed]
+            t['{}_left_rbound'.format(name)] = [leftrbound]
+            t['{}_right_rbound'.format(name)] = [rightrbound]
+            t['{}_left_bound'.format(name)] = [leftbound]
+            t['{}_right_bound'.format(name)] = [rightrbound]
+
+        return t
+
+
+class global_constraint(Table):
+    def __init__(self, *args, **kwargs):
+        super(Table, self).__init__(*args, **kwargs)
+
+    def add_constraint(self, component, parameter, ctype):
+        pass
+
+    def _to_galfit(self):
+        pass
 
 
 class component(object):
@@ -130,6 +155,16 @@ class component(object):
                 skipinimage, 'Skip this model in output image?(yes=1, no=0)')
 
         return body, constraints
+
+    def _to_table(self, **kwargs):
+        '''
+        Create a single row table containing this components
+        '''
+        t = Table()
+        for parameter in self._parameters:
+            if parameter is not None:
+                t = hstack([t, parameter._to_table(**kwargs)])
+        return t
 
 
 class analytic_component(component):
@@ -194,8 +229,18 @@ class sky(component):
         return body, constraints
 
 
-class gaussian(object):
-    pass
+class gaussian(analytic_component):
+    def __init__(self, x, y, mag, fwhm, n, ar, pa, uncertainties={}, fixed={},
+                 bounds={}, rbounds={}):
+        super(sersic, self).__init__('gaussian', x, y, mag, fwhm, ar, pa,
+                                     uncertainties, fixed, bounds, rbounds)
+
+        self.__delattr__('r')
+        self.n = self.make_parameter('fwhm', 'FWHM', fwhm, uncertainties,
+                                     fixed, bounds, rbounds)
+
+        self._parameters = [self.x, self.y, self.mag, self.fwhm, self.n, None,
+                            None, None, self.ar, self.pa]
 
 
 class psf(object):
@@ -328,3 +373,17 @@ class model(object):
         head += '\nO) {}'.format('regular')
         head += '\nP) {}'.format(runoption)
         return head
+
+    def _to_table(self, **kwargs):
+        # maybe add index
+        t = Table()
+        for i, comp in enumerate(self):
+            componenttable = comp._to_table(**kwargs)
+            componenttable['skipinimage'] = self.skipinimage[i]
+            t = vstack([t, componenttable])
+
+        return t
+
+    def write(self, *args, **kwargs):
+        # ignore warnings...
+        self._to_table().write(*args, **kwargs)

@@ -71,52 +71,24 @@ def test_parameter__repr__():
     assert a.__repr__() == 'parameter value: 3, uncertainty: 1'
 
 
-def test_component_init():
-    c = mod.component('psf', 5000, 4, 20,
-                      uncertainties={'x': 1, 'y': 2, 'mag': 3},
-                      fixed={'x': True, 'y': True, 'mag': True},
-                      bounds={'x': (.5, 1.5)}, rbounds={})
-
-    assert c.x.value == 5000
-    assert c.y.value == 4
-    assert c.mag.value == 20
-
-    assert c.x.uncertainty == 1
-    assert c.y.uncertainty == 2
-    assert c.mag.uncertainty == 3
-
-    assert c.x.fixed is True
-    assert c.y.fixed is True
-    assert c.mag.fixed is True
-
-
 def test_analytic_component_init():
     c = mod.analytic_component(
                         'cname', 1, 2, 3, 4, 5, 6,
-                        uncertainties={'r': 4.5, 'ratio': 5.5, 'pa': 6.5},
-                        fixed={'r': True, 'ratio': True, 'pa': True},
+                        uncertainties={'r': 4.5, 'ar': 5.5, 'pa': 6.5},
+                        fixed={'r': True, 'ar': True, 'pa': True},
                         bounds={'x': (.5, 1.5)}, rbounds={})
 
     assert c.r.value == 4
-    assert c.ratio.value == 5
+    assert c.ar.value == 5
     assert c.pa.value == 6
 
     assert c.r.uncertainty == 4.5
-    assert c.ratio.uncertainty == 5.5
+    assert c.ar.uncertainty == 5.5
     assert c.pa.uncertainty == 6.5
 
     assert c.r.fixed is True
-    assert c.ratio.fixed is True
+    assert c.ar.fixed is True
     assert c.pa.fixed is True
-
-
-def test_analytic_component_to_galfit():
-    c = mod.analytic_component(
-                        'cname', 1, 2, 3, 4, 5, 6,
-                        uncertainties={'r': 4.5, 'ratio': 5.5, 'pa': 6.5},
-                        fixed={'r': True, 'ratio': True, 'pa': True},
-                        bounds={'x': (.5, 1.5)}, rbounds={})
-    assert c.to_galfit() == ' 0) cname                     # object name\n 1)   1.0000    2.0000  0  0 # position x, y\n 2)   3.0000         1        # total magnitude\n 3)   4.0000         0        # effective radius\n 8)   5.0000         0        # axis ratio\n 9)   6.0000         0        # position angle\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'
 
 
 def test_sersic_init():
@@ -173,18 +145,6 @@ def test_model_sersic_init():
     assert m[0] == c0
 
 
-def test_component_to_galfit():
-    c = mod.component('psf', 5000, 4, 20,
-                      uncertainties={'x': 1, 'y': 2, 'mag': 3},
-                      fixed={'x': True, 'y': True, 'mag': True},
-                      bounds={'x': (.5, 1.5)}, rbounds={'y': (1, 1)})
-
-    return c._to_galfit(0, False)
-
-    # assert c.to_galfit() == ''' 0) psf                       # object name\n 1) 5000.0000    4.0000  1  1 # position x, y\n 2)  20.0000         0        # total magnitude\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'''
-    # assert c.constraints_to_galfit(1) == '\n         1  x                       0.5000 to   1.5000'
-
-
 def test_model_make_head():
     psf = gw.psf(np.arange(4).reshape((2, 2)), 3, 2)
     image = make_map()
@@ -205,7 +165,15 @@ def test_make_galfit_fitarea():
     assert np.array_equal(ref, mod.model.make_galfit_fitarea(fitarea))
 
 
-if __name__ == '__main__':
-    from importlib import reload
-    reload(mod)
-    c = test_make_galfit_fitarea()
+def test_value_or_nan_if_None():
+    f = mod.parameter.value_or_nan_if_None
+
+    assert np.isnan(f(None))
+    assert f(1) == 1
+    assert np.allclose(f(None, None), (np.nan, np.nan), equal_nan=True)
+    assert np.allclose(f(1, None), (1, np.nan), equal_nan=True)
+    assert np.allclose(f(None, 1), (np.nan, 1), equal_nan=True)
+    assert np.allclose(f(1, 2), (1, 2), equal_nan=True)
+
+
+test_value_or_nan_if_None()
