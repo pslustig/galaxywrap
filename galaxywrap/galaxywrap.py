@@ -38,7 +38,7 @@ class imageproperties(object):
     def platescale(self, platescale):
 
         if isinstance(platescale, wcs.WCS):
-            platescale = wcs.utils.proj_plane_pixel_scales(platescale)
+            platescale = wcs.utils.proj_plane_pixel_scales(platescale) * 3600
 
         if not utils.isiterable(platescale):
             platescale = [platescale, platescale]
