@@ -46,7 +46,7 @@ def test_mapproperties_reader():
     props = gw.imageproperties.read(h)
     assert props.magzpt == 1
     assert props.exptime == 2
-    assert np.allclose(props.platescale, (1, 1))
+    assert np.allclose(props.platescale, (3600, 3600))
     assert props.gain == 4
     assert props.ncombine == 5
     assert props.unit == 'ELECTRONS'
