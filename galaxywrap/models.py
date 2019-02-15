@@ -110,14 +110,12 @@ class global_constraint(Table):
 
 
 class component(object):
-    def __init__(self, name, values, names, descriptions, uncertainties, fixed,
-                 bounds, rbounds):
+    def __init__(self, name, values, names, descriptions, **kwargs):
 
         self.name = name
 
         for value, name, description in zip(values, names, descriptions):
-            param = self.make_parameter(name, description, value,
-                                        uncertainties, fixed, bounds, rbounds)
+            param = self.make_parameter(name, description, value, **kwargs)
             self.__setattr__(name, param)
 
         self._parameters = []
@@ -126,13 +124,16 @@ class component(object):
         return self._to_galfit(0)[0]
 
     @staticmethod
-    def make_parameter(name, description, value, uncertainties, fixeddict,
-                       bounddict, rbounddict):
+    def make_parameter(name, description, value, **kwargs):
+
+        uncertainties = kwargs.get('uncertainties', {})
+        fixed = kwargs.get('fixed', {}).pop(name, False)
+        bounds = kwargs.get('bounds', {}).pop(name, (None, None))
+        rbounds = kwargs.get('rbounds', {}).pop(name, (None, None))
+
         p = parameter(value, uncertainties.pop(name, None), name=name,
-                      description=description,
-                      fixed=fixeddict.pop(name, False),
-                      bounds=bounddict.pop(name, (None, None)),
-                      rbounds=rbounddict.pop(name, (None, None)))
+                      description=description, fixed=fixed, bounds=bounds,
+                      rbounds=rbounds)
         return p
 
     def _to_galfit(self, componentnumber, skipinimage=False):
@@ -168,8 +169,7 @@ class component(object):
 
 
 class analytic_component(component):
-    def __init__(self, name, x, y, mag, r, ar, pa, uncertainties,
-                 fixed, bounds, rbounds):
+    def __init__(self, name, x, y, mag, r, ar, pa, **kwargs):
 
         values = [x, y, mag, r, ar, pa]
         names = ['x', 'y', 'mag', 'r', 'ar', 'pa']
@@ -177,29 +177,25 @@ class analytic_component(component):
                         'effective radius', 'axis ratio', 'position angle']
 
         super(analytic_component, self).__init__(
-                            name, values, names, descriptions, uncertainties,
-                            fixed, bounds, rbounds)
+                            name, values, names, descriptions, **kwargs)
 
         self._parameters = [self.x, self.y, self.mag, self.r, None, None,
                             None, None, self.ar, self.pa]
 
 
 class sersic(analytic_component):
-    def __init__(self, x, y, mag, r, n, ar, pa, uncertainties={}, fixed={},
-                 bounds={}, rbounds={}):
+    def __init__(self, x, y, mag, r, n, ar, pa, **kwargs):
         super(sersic, self).__init__('sersic', x, y, mag, r, ar, pa,
-                                     uncertainties, fixed, bounds, rbounds)
+                                     **kwargs)
 
-        self.n = self.make_parameter('n', 'sersic index', n, uncertainties,
-                                     fixed, bounds, rbounds)
+        self.n = self.make_parameter('n', 'sersic index', n, **kwargs)
 
         self._parameters = [self.x, self.y, self.mag, self.r, self.n, None,
                             None, None, self.ar, self.pa]
 
 
 class sky(component):
-    def __init__(self, bkg, dbkg_dx, dbkg_dy, uncertainties={}, fixed={},
-                 bounds={}, rbounds={}):
+    def __init__(self, bkg, dbkg_dx, dbkg_dy, **kwargs):
 
         values = bkg, dbkg_dx, dbkg_dy
         names = 'bkg', 'dbkg_dx', 'dbkg_dy'
@@ -207,8 +203,7 @@ class sky(component):
                         'dbkg / dx (bkg gradient in x)',
                         'dbkg / dy (bkg gradient in y)')
 
-        super(sky, self).__init__('sky', values, names, descriptions,
-                                  uncertainties, fixed, bounds, rbounds)
+        super(sky, self).__init__('sky', values, names, descriptions, **kwargs)
         self._parameters = [self.bkg, self.dbkg_dx, self.dbkg_dy]
 
     def _to_galfit(self, componentnumber, skipinimage=False):
@@ -230,14 +225,12 @@ class sky(component):
 
 
 class gaussian(analytic_component):
-    def __init__(self, x, y, mag, fwhm, n, ar, pa, uncertainties={}, fixed={},
-                 bounds={}, rbounds={}):
+    def __init__(self, x, y, mag, fwhm, n, ar, pa, **kwargs):
         super(sersic, self).__init__('gaussian', x, y, mag, fwhm, ar, pa,
-                                     uncertainties, fixed, bounds, rbounds)
+                                     **kwargs)
 
         self.__delattr__('r')
-        self.n = self.make_parameter('fwhm', 'FWHM', fwhm, uncertainties,
-                                     fixed, bounds, rbounds)
+        self.n = self.make_parameter('fwhm', 'FWHM', fwhm, **kwargs)
 
         self._parameters = [self.x, self.y, self.mag, self.fwhm, self.n, None,
                             None, None, self.ar, self.pa]
