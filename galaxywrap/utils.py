@@ -14,16 +14,6 @@ def isiterable(obj):
     return iterable
 
 
-def change_tuple_unit(tpl, unit):
-    tpl = list(tpl)
-    if unit is not None:
-        for i, value in enumerate(tpl):
-            if value is not None:
-                tpl[i] = value.to(unit)
-
-    return tpl
-
-
 def translate_to_constraints_names(name):
     if name == 'r':
         name = 're'

@@ -15,7 +15,7 @@ class imageproperties(object):
     fmagzeropoint : scalar
         magnitude zeropoint
 
-    platescale : `astropy.units.quantity.Quantity`
+    platescale : ``
         The angular size of one pixel. If single value the same size is
         assumed for both directions.
 
