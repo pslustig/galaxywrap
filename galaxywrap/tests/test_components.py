@@ -1,4 +1,4 @@
-import galaxywrap.models as mod
+import galaxywrap.components as cp
 import pytest
 import numpy as np
 import galaxywrap as gw
@@ -33,46 +33,46 @@ def make_map(mask=True, unc=True):
 
 
 def test_parameter_init():
-    p = mod.parameter(value=3)
+    p = cp.parameter(value=3)
     assert p.value == 3
 
     with pytest.raises(TypeError):
-        mod.parameter(uncertainty=3)
+        cp.parameter(uncertainty=3)
 
-    a = mod.parameter(value=3, uncertainty=1)
+    a = cp.parameter(value=3, uncertainty=1)
     assert a.value == 3
     assert a.uncertainty == 1
 
 
 def test_parameter_bounds():
-    a = mod.parameter(1, bounds=(0, 3))
+    a = cp.parameter(1, bounds=(0, 3))
     assert a.bounds == (0, 3)
 
     with pytest.raises(AssertionError):
-        mod.parameter(-1, bounds=(0, 3))
+        cp.parameter(-1, bounds=(0, 3))
 
     with pytest.raises(AssertionError):
-        mod.parameter(2, bounds=(0, None))
+        cp.parameter(2, bounds=(0, None))
 
 
 def test_parameter_rbounds():
-    a = mod.parameter(1, rbounds=(0, 3))
+    a = cp.parameter(1, rbounds=(0, 3))
     assert a.rbounds == (0, 3)
 
-    a = mod.parameter(1, rbounds=1)
+    a = cp.parameter(1, rbounds=1)
     assert a.rbounds == (1, 1)
 
     with pytest.raises(AssertionError):
-        mod.parameter(2, bounds=(0, None))
+        cp.parameter(2, bounds=(0, None))
 
 
 def test_parameter__repr__():
-    a = mod.parameter(value=3, uncertainty=1)
+    a = cp.parameter(value=3, uncertainty=1)
     assert a.__repr__() == 'parameter value: 3, uncertainty: 1'
 
 
 def test_analytic_component_init():
-    c = mod.analytic_component(
+    c = cp.analytic_component(
                         'cname', 1, 2, 3, 4, 5, 6,
                         uncertainties={'r': 4.5, 'ar': 5.5, 'pa': 6.5},
                         fixed={'r': True, 'ar': True, 'pa': True},
@@ -92,7 +92,7 @@ def test_analytic_component_init():
 
 
 def test_sersic_init():
-    c = mod.sersic(
+    c = cp.sersic(
         1, 2, 3, 4, 7, 5, 6,
         uncertainties={'n': 7.5},
         fixed={'n': True})
@@ -103,7 +103,7 @@ def test_sersic_init():
 
 '''
 def test_sersic_to_galfit():
-    c = mod.sersic(
+    c = cp.sersic(
             1, 2, 3, 4, 7, 5, 6,
             uncertainties={'n': 7.5},
             fixed={'n': True})
@@ -111,62 +111,10 @@ def test_sersic_to_galfit():
     assert c.to_galfit() == ' 0) sersic                    # object name\n 1)   1.0000    2.0000  0  0 # position x, y\n 2)   3.0000         1        # total magnitude\n 3)   4.0000         1        # effective radius\n 4)   7.0000         0        # sersic index\n 8)   5.0000         1        # axis ratio\n 9)   6.0000         1        # position angle\n Z) 0                         # Skip this model in output image?(yes=1, no=0)'
 '''
 
-def test_model_empty():
-    m = mod.model()
-    assert len(m) == 0
-
-
-def test_model_sersic_init():
-    c0 = mod.sersic(1, 2, 3, 4, 7, 5, 6, uncertainties={'n': 7.5},
-                    fixed={'n': True})
-    c1 = mod.sersic(1, 2, 3, 4, 7, 5, 6, uncertainties={'n': 7.5},
-                    fixed={'n': True})
-
-    m = mod.model([c0, c1], [True, False])
-    ref = (c0, c1)
-
-    # test __len__
-    assert len(m) == 2
-
-    # test __getitem__
-    assert m[0] == c0
-    assert m[1] == c1
-
-    # test __iter__
-    for mm, ref in zip(m, ref):
-        assert mm == ref
-
-    # test __delitem__
-    m.__delitem__(0)
-    assert m[0] == c1
-
-    # test __setitem__
-    m[0] = c0
-    assert m[0] == c0
-
-
-def test_model_make_head():
-    psf = gw.psf(np.arange(4).reshape((2, 2)), 3, 2)
-    image = make_map()
-    model = mod.model()
-    constraints = ''
-    fitarea = ((1, 40), (2, 30))
-    head = model.make_head(0, image, psf, constraints, fitarea)
-
-
-def test_make_galfit_fitarea():
-    image = make_map()
-    fitarea = None
-    assert np.array_equal(((1, image.shape[1]), (1, image.shape[0])),
-                          mod.model.make_galfit_fitarea(fitarea, image))
-
-    fitarea = np.array(((1, 2), (3, 4)))
-    ref = fitarea.copy() + 1
-    assert np.array_equal(ref, mod.model.make_galfit_fitarea(fitarea))
 
 
 def test_value_or_nan_if_None():
-    f = mod.parameter.value_or_nan_if_None
+    f = cp.parameter.value_or_nan_if_None
 
     assert np.isnan(f(None))
     assert f(1) == 1
@@ -174,6 +122,3 @@ def test_value_or_nan_if_None():
     assert np.allclose(f(1, None), (1, np.nan), equal_nan=True)
     assert np.allclose(f(None, 1), (np.nan, 1), equal_nan=True)
     assert np.allclose(f(1, 2), (1, 2), equal_nan=True)
-
-
-test_value_or_nan_if_None()
