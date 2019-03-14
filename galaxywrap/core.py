@@ -7,22 +7,12 @@ import re
 import numpy as np
 from astropy.table import Table, vstack
 from shutil import rmtree
+import tempfile as tf
 
 
-def make_galfit_directory(where, exist_ok=False):
-    where = Path(where)
-    i = 0
-    while True:
-        subdir = where / 'galfit_{:03d}'.format(i)
-
-        try:
-            subdir.mkdir(parents=True, exist_ok=exist_ok)
-            logging.info('Created directory %s', subdir)
-            break
-        except FileExistsError:
-            i += 1
-
-    return subdir
+def make_galfit_directory():
+    newdir = tf.mkdtemp(prefix='galfit')
+    return Path(newdir)
 
 
 def make_galfit_files(feedme, image, psf, constraints, directory):
@@ -54,7 +44,8 @@ def fit(feedme, image, psf, constraints, **kwargs):
     verbose = kwargs.pop('verbose', False)
     deletefiles = kwargs.pop('deletefiles', True)
     directory = kwargs.pop('directory', '/tmp')
-    directory = make_galfit_directory(directory)
+    directory = make_galfit_directory()
+
     make_galfit_files(feedme, image, psf, constraints, directory)
 
     cmd = [galfitcmd, 'galfit.feedme']
