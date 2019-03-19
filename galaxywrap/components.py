@@ -188,8 +188,7 @@ class sersic(analytic_component):
 
         self.n = self.make_parameter('n', 'sersic index', n, **kwargs)
 
-        self._parameters = [self.x, self.y, self.mag, self.r, self.n, None,
-                            None, None, self.ar, self.pa]
+        self._parameters[4] = self.n
 
 
 class sky(component):
@@ -223,15 +222,14 @@ class sky(component):
 
 
 class gaussian(analytic_component):
-    def __init__(self, x, y, mag, fwhm, n, ar, pa, **kwargs):
+    def __init__(self, x, y, mag, fwhm, ar, pa, **kwargs):
         super(sersic, self).__init__('gaussian', x, y, mag, fwhm, ar, pa,
                                      **kwargs)
 
-        self.__delattr__('r')
-        self.n = self.make_parameter('fwhm', 'FWHM', fwhm, **kwargs)
+        self.fwhm = self.make_parameter('fwhm', 'FWHM', fwhm, **kwargs)
 
-        self._parameters = [self.x, self.y, self.mag, self.fwhm, self.n, None,
-                            None, None, self.ar, self.pa]
+        self._parameters[3] = self.fwhm
+        self.__delattr__('r')
 
 
 class psf(component):
