@@ -51,21 +51,21 @@ class parameter(object):
         constraints = ''
         name = utils.translate_to_constraints_names(self.name)
 
-        constraints += self.make_range_constraints(
+        constraints += self._make_range_constraints(
                         galfitcomponentnumber, name, self.bounds, False)
-        constraints += self.make_range_constraints(
+        constraints += self._make_range_constraints(
                         galfitcomponentnumber, name, self.rbounds, True)
 
         return value, constraints
 
     @staticmethod
-    def make_range_constraints(galfitcomponentnumber, name, bounds,
+    def _make_range_constraints(galfitcomponentnumber, name, bounds,
                                isrelative):
         constraints = ''
         if bounds[0] is not None:
             constraints = '{}  {}  '.format(galfitcomponentnumber, name)
-            constraints += '{0:8.4f} {2} {1:8.4f}'.format(
-                                    *bounds, 'to' if not isrelative else '')
+            constraints += '{0:.4f}  {2}{1:.4f}'.format(
+                                    *bounds, 'to  ' if not isrelative else '')
         return constraints
 
     @classmethod

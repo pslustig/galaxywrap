@@ -6,6 +6,18 @@ from astropy.convolution import Gaussian2DKernel
 from astropy.nddata import StdDevUncertainty
 
 
+def test_make_range_constraints():
+
+    cstr = cp.parameter._make_range_constraints(1, "x", (3, 4), False)
+    assert cstr.split('  ') == ['1',  'x',  '3.0000', 'to', '4.0000']
+
+    cstr = cp.parameter._make_range_constraints(1, "x", (3, 4), True)
+    assert cstr.split('  ') == ['1',  'x',  '3.0000', '4.0000']
+
+    cstr = cp.parameter._make_range_constraints(1, "x", (None, None), True)
+    assert cstr == ''
+
+
 def make_setup():
     setup = gw.imageproperties(1, 2, 3, 4, 5, 'ELECTRONS')
     return setup
