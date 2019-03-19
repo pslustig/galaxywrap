@@ -51,12 +51,13 @@ class parameter(object):
         constraints = ''
         name = utils.translate_to_constraints_names(self.name)
 
+        constraintsleading = '{}  {}  '.format(galfitcomponentnumber, name)
         if self.bounds[0] is not None:
-            constraints += '{}  {}  {:8.4f} to {:8.4f}\n'.format(
-                              galfitcomponentnumber, name, *self.bounds)
+            constraints += constraintsleading + '{:8.4f} to {:8.4f}\n'.format(
+                                                                *self.bounds)
         if self.rbounds[0] is not None:
-            constraints += '{}  {}  {:8.4f}  {:8.4f}\n'.format(
-                              galfitcomponentnumber, name, *self.rbounds)
+            constraints += constraintsleading + '{:8.4f}  {:8.4f}\n'.format(
+                                                                *self.rbounds)
 
         return value, constraints
 
