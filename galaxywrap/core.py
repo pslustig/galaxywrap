@@ -73,12 +73,16 @@ def fit(feedme, image, psf, constraints, **kwargs):
 def read_results(directory, filename='imgblock.fits'):
     with fits.open(Path(directory)/filename) as hdul:
         header = fits.header.Header(hdul[2].header)
+        image = hdul[1].data
         model = hdul[2].data
+        residuals = hdul[3].data
+
         # residuals = hdul[3].data
 
     fitstats = read_fitstats_from_header(header)
     components = read_components_from_header(header)
-    return components, fitstats, model
+
+    return components, fitstats, image, model, residuals
 
 
 def read_fitstats_from_header(header):
