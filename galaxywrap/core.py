@@ -8,6 +8,7 @@ import numpy as np
 from astropy.table import Table, vstack
 from shutil import rmtree
 import tempfile as tf
+import sys
 
 
 def make_galfit_directory():
@@ -49,16 +50,17 @@ def fit(feedme, image, psf, constraints, **kwargs):
     make_galfit_files(feedme, image, psf, constraints, directory)
 
     cmd = [galfitcmd, 'galfit.feedme']
+
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             universal_newlines=True, cwd=directory)
-    '''
-    for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line
-    popen.stdout.close()
-    '''
+                             cwd=directory, universal_newlines=True)
+
+    if verbose:
+        print_galfit_output(popen)
+
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
+
 
     # maybe just read everything if fit is done and just load mode if sources
     # are made
@@ -70,7 +72,50 @@ def fit(feedme, image, psf, constraints, **kwargs):
     return results
 
 
+def print_galfit_output(process):
+    with process.stdout as pstd:
+        for line in pstd:
+            print(line, end='')
+
+
+class FitFailedError(Exception):
+    def __init__(self, msg=None):
+        if msg is None:
+            msg = (r'''
+                 __/~*##$%@@@******~\-__
+               /f=r/~_-~ _-_ --_.^-~--\=b\
+             4fF / */  .o  ._-__.__/~-. \*R\
+            /fF./  . /- /' /|/|  \_  * *\ *\R\
+           (iC.I+ '| - *-/00  |-  \  )  ) )|RB
+           (I| (  [  / -|/^^\ |   )  /_/ | *)B
+           (I(. \ `` \   \m_m_|~__/ )_ .-~ F/
+            \b\\=_.\_b`-+-~x-_/ .. ,._/ , F/
+             ~\_\= =  =-*###%#x==-#  *=- =/
+                ~\**U/~  | i i | ~~~\===~
+                        | I I \\
+                       / // i\ \\
+                  (   [ (( I@) )))  )
+                       \_\_VYVU_/
+                         || * |
+                        /* /I\ *~~\
+                      /~-/*  / \ \ ~~M~\
+            ____----=~ // /WVW\* \|\ ***===--___
+
+   Doh!  GALFIT crashed because at least one of the model parameters
+   is bad.  The most common causes are: effective radius too small/big,
+   component is too far outside of fitting region (also check fitting
+   region), model mag too faint, axis ratio too small, Sersic index
+   too small/big, Nuker powerlaw too small/big.  If frustrated or
+   problem should persist, email for help or report problem to:
+                     Chien.Y.Peng@gmail.com
+
+        ''')
+        super().__init__(msg)
+
+
+
 def read_results(directory, filename='imgblock.fits'):
+    check_if_fit_worked(directory)
     with fits.open(Path(directory)/filename) as hdul:
         header = fits.header.Header(hdul[2].header)
         image = hdul[1].data
@@ -83,6 +128,12 @@ def read_results(directory, filename='imgblock.fits'):
     components = read_components_from_header(header)
 
     return components, fitstats, image, model, residuals
+
+
+def check_if_fit_worked(directory):
+    imgblock_exists = (directory/'imgblock.fits').exists()
+    if not imgblock_exists:
+        raise FitFailedError
 
 
 def read_fitstats_from_header(header):
