@@ -275,7 +275,8 @@ class model(object):
         head += '\nD) {}'.format('psf.fits' if psf is not None else 'none')
         head += '\nE) {}'.format(1 if psf is None else psf.finesampling)
         head += '\nF) {}'.format('none' if image.mask is None else 'mask.fits')
-        head += '\nG) {}'.format('none' if constraints == '' else 'mask.fits')
+        head += '\nG) {}'.format(
+                        'none' if constraints == '' else 'constraints.txt ')
         head += '\nH) {}   {}   {}   {}'.format(*fitarea[0], *fitarea[1])
         head += '\nI) {}  {}'.format(*convbox)
         head += '\nJ) {}'.format(image.properties.magzpt)
