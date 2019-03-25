@@ -13,8 +13,15 @@ Welcome to galaxywrap's documentation!
 dsjgvseggj
 
 
-.. automodule:: galaxywrap.models
+.. automodule:: galaxywrap.components
    :members:
+
+.. toctree::
+   :maxdepth: 3
+   :glob:
+
+   demo
+
 
 Indices and tables
 ==================

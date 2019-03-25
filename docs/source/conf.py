@@ -15,6 +15,8 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('.')+'/../galaxywrap/')
+sys.path.insert(0, os.path.abspath('.')+'/../../scripts/')
+# sys.path.insert(0, os.path.abspath('.')+'/../')
 
 
 # -- Project information -----------------------------------------------------
@@ -44,6 +46,8 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx.ext.napoleon',
+    'nbsphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
