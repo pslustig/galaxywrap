@@ -122,7 +122,7 @@ class image(NDDataArray):
                 mask = hdul[maskidx].data.astype(bool)
 
             if uncidx is not None:
-                uncertainty = StdDevUncertainty(hdul[uncidx].data)
+                uncertainty = hdul[uncidx].data
 
         return cls(data, properties=imgprops, mask=mask,
                    uncertainty=uncertainty)

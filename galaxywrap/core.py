@@ -9,6 +9,7 @@ from astropy.table import Table, vstack
 from shutil import rmtree
 import tempfile as tf
 import sys
+import warnings
 
 
 def make_galfit_directory():
@@ -54,8 +55,7 @@ def fit(feedme, image, psf, constraints, **kwargs):
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              cwd=directory, universal_newlines=True)
 
-    if verbose:
-        print_galfit_output(popen)
+    print_galfit_output(popen, verbose)
 
     return_code = popen.wait()
     if return_code:
@@ -69,13 +69,17 @@ def fit(feedme, image, psf, constraints, **kwargs):
     if deletefiles:
         rmtree(directory)
 
+    if results is None:
+        raise FitFailedError
+
     return results
 
 
-def print_galfit_output(process):
+def print_galfit_output(process, verbose):
     with process.stdout as pstd:
         for line in pstd:
-            print(line, end='')
+            if verbose:
+                print(line, end='')
 
 
 class FitFailedError(Exception):
@@ -115,14 +119,14 @@ class FitFailedError(Exception):
 
 
 def read_results(directory, filename='imgblock.fits'):
-    check_if_fit_worked(directory)
+    if not check_if_fit_worked(directory):
+        return None
+
     with fits.open(Path(directory)/filename) as hdul:
         header = fits.header.Header(hdul[2].header)
         image = hdul[1].data
         model = hdul[2].data
         residuals = hdul[3].data
-
-        # residuals = hdul[3].data
 
     fitstats = read_fitstats_from_header(header)
     components = read_components_from_header(header)
@@ -132,9 +136,7 @@ def read_results(directory, filename='imgblock.fits'):
 
 def check_if_fit_worked(directory):
     imgblock_exists = (directory/'imgblock.fits').exists()
-    if not imgblock_exists:
-        raise FitFailedError
-
+    return imgblock_exists
 
 def read_fitstats_from_header(header):
 
@@ -218,6 +220,9 @@ def make_component_from_cleaned_header(header, idx):
 
 
 def add_parameter_to_table(table, name, value, uncertainty, flag):
+    ''' have to subtract 1 from coordinates due to indexing '''
+    if name == 'x' or name == 'y':
+        value -= 1
     table[name] = [value]
     table['{}_unc'.format(name)] = [uncertainty]
     table['{}_flag'.format(name)] = [flag]
@@ -269,6 +274,7 @@ def read_parameter(headerentry):
         flag = 'problematic'
         strval = remove_and_split_string(headerentry, '*')
         uncertainty = np.nan
+        warnings.warn('One parameter is problematic')
 
     else:
         strval = remove_and_split_string(headerentry)
