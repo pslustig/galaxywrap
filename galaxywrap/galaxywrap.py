@@ -227,10 +227,12 @@ class model(object):
         returns
         new model with fit results and log
         '''
-        return self._start_galfitrun(0, image, psf, fitarea, gconstraints, **kwargs)
+        return self._start_galfitrun(
+                    0, image, psf, fitarea, gconstraints, **kwargs)
 
     def make(self, image, psf, **kwargs):
-        return self._start_galfitrun(2, image, psf)
+        return self._start_galfitrun(
+                    2, image, psf, fitarea=None, gconstraints=None, **kwargs)
 
     def _make_global_constraints(self, gconstraints):
         return ''
