@@ -39,7 +39,7 @@ class parameter(object):
     @rbounds.setter
     def rbounds(self, rbounds):
         if not utils.isiterable(rbounds):
-            rbounds = (rbounds, rbounds)
+            rbounds = (-rbounds, rbounds)
         utils.check_all_or_no_None(rbounds)
         self._rbounds = rbounds
 
@@ -64,7 +64,7 @@ class parameter(object):
         constraints = ''
         if bounds[0] is not None:
             constraints = '{}  {}  '.format(galfitcomponentnumber, name)
-            constraints += '{0:.4f}  {2}{1:.4f}'.format(
+            constraints += '{0:.4f}  {2}{1:.4f}\n'.format(
                                     *bounds, 'to  ' if not isrelative else '')
         return constraints
 

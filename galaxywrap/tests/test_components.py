@@ -9,10 +9,10 @@ from astropy.nddata import StdDevUncertainty
 def test_make_range_constraints():
 
     cstr = cp.parameter._make_range_constraints(1, "x", (3, 4), False)
-    assert cstr.split('  ') == ['1',  'x',  '3.0000', 'to', '4.0000']
+    assert cstr.split('  ') == ['1',  'x',  '3.0000', 'to', '4.0000\n']
 
     cstr = cp.parameter._make_range_constraints(1, "x", (3, 4), True)
-    assert cstr.split('  ') == ['1',  'x',  '3.0000', '4.0000']
+    assert cstr.split('  ') == ['1',  'x',  '3.0000', '4.0000\n']
 
     cstr = cp.parameter._make_range_constraints(1, "x", (None, None), True)
     assert cstr == ''
@@ -72,7 +72,7 @@ def test_parameter_rbounds():
     assert a.rbounds == (0, 3)
 
     a = cp.parameter(1, rbounds=1)
-    assert a.rbounds == (1, 1)
+    assert a.rbounds == (-1, 1)
 
     with pytest.raises(AssertionError):
         cp.parameter(2, bounds=(0, None))

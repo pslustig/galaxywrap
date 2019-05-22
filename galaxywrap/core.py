@@ -8,6 +8,8 @@ import numpy as np
 from astropy.table import Table, vstack
 from shutil import rmtree
 import tempfile as tf
+import sys
+import warnings
 
 
 def make_galfit_directory():
@@ -49,16 +51,16 @@ def fit(feedme, image, psf, constraints, **kwargs):
     make_galfit_files(feedme, image, psf, constraints, directory)
 
     cmd = [galfitcmd, 'galfit.feedme']
+
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             universal_newlines=True, cwd=directory)
-    '''
-    for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line
-    popen.stdout.close()
-    '''
+                             cwd=directory, universal_newlines=True)
+
+    print_galfit_output(popen, verbose)
+
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
+
 
     # maybe just read everything if fit is done and just load mode if sources
     # are made
@@ -67,23 +69,74 @@ def fit(feedme, image, psf, constraints, **kwargs):
     if deletefiles:
         rmtree(directory)
 
+    if results is None:
+        raise FitFailedError
+
     return results
 
 
+def print_galfit_output(process, verbose):
+    with process.stdout as pstd:
+        for line in pstd:
+            if verbose:
+                print(line, end='')
+
+
+class FitFailedError(Exception):
+    def __init__(self, msg=None):
+        if msg is None:
+            msg = (r'''
+                 __/~*##$%@@@******~\-__
+               /f=r/~_-~ _-_ --_.^-~--\=b\
+             4fF / */  .o  ._-__.__/~-. \*R\
+            /fF./  . /- /' /|/|  \_  * *\ *\R\
+           (iC.I+ '| - *-/00  |-  \  )  ) )|RB
+           (I| (  [  / -|/^^\ |   )  /_/ | *)B
+           (I(. \ `` \   \m_m_|~__/ )_ .-~ F/
+            \b\\=_.\_b`-+-~x-_/ .. ,._/ , F/
+             ~\_\= =  =-*###%#x==-#  *=- =/
+                ~\**U/~  | i i | ~~~\===~
+                        | I I \\
+                       / // i\ \\
+                  (   [ (( I@) )))  )
+                       \_\_VYVU_/
+                         || * |
+                        /* /I\ *~~\
+                      /~-/*  / \ \ ~~M~\
+            ____----=~ // /WVW\* \|\ ***===--___
+
+   Doh!  GALFIT crashed because at least one of the model parameters
+   is bad.  The most common causes are: effective radius too small/big,
+   component is too far outside of fitting region (also check fitting
+   region), model mag too faint, axis ratio too small, Sersic index
+   too small/big, Nuker powerlaw too small/big.  If frustrated or
+   problem should persist, email for help or report problem to:
+                     Chien.Y.Peng@gmail.com
+
+        ''')
+        super().__init__(msg)
+
+
+
 def read_results(directory, filename='imgblock.fits'):
+    if not check_if_fit_worked(directory):
+        return None
+
     with fits.open(Path(directory)/filename) as hdul:
         header = fits.header.Header(hdul[2].header)
         image = hdul[1].data
         model = hdul[2].data
         residuals = hdul[3].data
 
-        # residuals = hdul[3].data
-
     fitstats = read_fitstats_from_header(header)
     components = read_components_from_header(header)
 
     return components, fitstats, image, model, residuals
 
+
+def check_if_fit_worked(directory):
+    imgblock_exists = (directory/'imgblock.fits').exists()
+    return imgblock_exists
 
 def read_fitstats_from_header(header):
 
@@ -167,6 +220,9 @@ def make_component_from_cleaned_header(header, idx):
 
 
 def add_parameter_to_table(table, name, value, uncertainty, flag):
+    ''' have to subtract 1 from coordinates due to indexing '''
+    if name == 'x' or name == 'y':
+        value -= 1
     table[name] = [value]
     table['{}_unc'.format(name)] = [uncertainty]
     table['{}_flag'.format(name)] = [flag]
@@ -218,6 +274,7 @@ def read_parameter(headerentry):
         flag = 'problematic'
         strval = remove_and_split_string(headerentry, '*')
         uncertainty = np.nan
+        warnings.warn('One parameter is problematic')
 
     else:
         strval = remove_and_split_string(headerentry)
