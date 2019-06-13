@@ -148,10 +148,10 @@ def read_fitstats_from_header(header):
 
     fitreg = header["FITSECT"]
     fitreg = re.findall(r"[\w']+", fitreg)
-    stats['box_x0'] = fitreg[0]
-    stats['box_x1'] = fitreg[1]
-    stats['box_y0'] = fitreg[2]
-    stats['box_y1'] = fitreg[3]
+    stats['box_x0'] = fitreg[0] - 1
+    stats['box_x1'] = fitreg[1] - 1
+    stats['box_y0'] = fitreg[2] - 1
+    stats['box_y1'] = fitreg[3] - 1
 
     # Convolution box
     convbox = header["CONVBOX"]
