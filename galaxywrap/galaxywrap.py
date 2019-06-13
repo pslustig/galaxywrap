@@ -142,8 +142,6 @@ class psf(NDDataArray):
     def convolutionbox(self, convolutionbox):
         if not utils.isiterable(convolutionbox):
             convolutionbox = (convolutionbox, convolutionbox)
-        assert isinstance(convolutionbox[0], int)
-        assert isinstance(convolutionbox[1], int)
         self._convolutionbox = convolutionbox
 
     @property
