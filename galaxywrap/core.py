@@ -58,8 +58,8 @@ def fit(feedme, image, psf, constraints, **kwargs):
     print_galfit_output(popen, verbose)
 
     return_code = popen.wait()
-    if return_code:
-        raise subprocess.CalledProcessError(return_code, cmd)
+    # if return_code:
+    #     raise subprocess.CalledProcessError(return_code, cmd)
 
 
     # maybe just read everything if fit is done and just load mode if sources
@@ -122,16 +122,19 @@ def read_results(directory, filename='imgblock.fits'):
     if not check_if_fit_worked(directory):
         return None
 
+    out = {}
+
     with fits.open(Path(directory)/filename) as hdul:
         header = fits.header.Header(hdul[2].header)
-        image = hdul[1].data
-        model = hdul[2].data
-        residuals = hdul[3].data
+        out['image'] = image = hdul[1].data
+        out['model'] = hdul[2].data
+        out['residuals'] = hdul[3].data
 
-    fitstats = read_fitstats_from_header(header)
-    components = read_components_from_header(header)
 
-    return components, fitstats, image, model, residuals
+    out['fitstats'] = read_fitstats_from_header(header)
+    out['components'] = read_components_from_header(header)
+
+    return out
 
 
 def check_if_fit_worked(directory):
