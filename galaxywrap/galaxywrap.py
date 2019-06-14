@@ -154,6 +154,11 @@ class psf(NDDataArray):
                     'finesampling factor must be an integer')
         self._finesampling = finesampling
 
+    @classmethod
+    def read(cls, filename, convolutionbox, finesampling=1, extension=0):
+        return cls(fits.getdata(filename, extension),
+                   convolutionbox=convolutionbox, finesampling=finesampling)
+
 
 class model(object):
     def __init__(self, components=None, skipinimage=False):
