@@ -80,6 +80,7 @@ class imageproperties(object):
         header['EXPTIME'] = self.exptime
         header['UNIT'] = self.unit
         header['NCOMBINE'] = self.ncombine
+        header['GAIN'] = self.gain
 
         return header
 
