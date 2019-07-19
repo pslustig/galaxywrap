@@ -20,6 +20,9 @@ class parameter(object):
         return 'parameter value: {}, uncertainty: {}'.format(
                                         self.value, self.uncertainty)
 
+    def __float__(self):
+        return self.value
+
     @property
     def bounds(self):
         return self._bounds
