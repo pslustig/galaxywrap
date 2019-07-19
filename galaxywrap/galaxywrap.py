@@ -7,6 +7,7 @@ from astropy.io import fits
 import warnings
 from astropy.table import Table, vstack
 from . import core
+import matplotlib.pyplot as plt
 
 
 class imageproperties(object):
@@ -190,6 +191,14 @@ class model(object):
             self.components.append(comp)
             self.skipinimage.append(skipinimage)
 
+    def remove_component(self, key):
+        self.__delitem__(key)
+
+    def remove_components(self, *keys):
+        keys = sorted(keys)
+        for key in keys[::-1]:
+            self.remove_component(key)
+
     def __repr__(self):
         return 'galfit model containing {} component(s)'.format(len(self))
 
@@ -304,3 +313,19 @@ class model(object):
     def write(self, *args, **kwargs):
         # ignore warnings...
         self._to_table().write(*args, **kwargs)
+
+    def plot(self, ax=None, legendkw={}, **kwargs):
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+
+        kwargs['color'] = kwargs.pop('color', 'b')
+
+        for i, component in enumerate(self.components):
+            if hasattr(component, 'x'):
+                x = component.x
+                y = component.y
+
+                ax.scatter(x, y, label=str(i) + ' ' + component.name, **kwargs)
+                ax.text(x, y, str(i))
+        ax.legend(**legendkw)
