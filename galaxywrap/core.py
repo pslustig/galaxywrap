@@ -61,10 +61,9 @@ def fit(feedme, image, psf, constraints, **kwargs):
     # if return_code:
     #     raise subprocess.CalledProcessError(return_code, cmd)
 
-
     # maybe just read everything if fit is done and just load mode if sources
     # are made
-    results = read_results(directory)
+    results = read_results(directory/'imgblock.fits')
 
     if deletefiles:
         rmtree(directory)
@@ -85,7 +84,7 @@ def print_galfit_output(process, verbose):
 class FitFailedError(Exception):
     def __init__(self, msg=None):
         if msg is None:
-            msg = (r'''
+            msg = ('''
                  __/~*##$%@@@******~\-__
                /f=r/~_-~ _-_ --_.^-~--\=b\
              4fF / */  .o  ._-__.__/~-. \*R\
@@ -117,19 +116,17 @@ class FitFailedError(Exception):
         super().__init__(msg)
 
 
-
-def read_results(directory, filename='imgblock.fits'):
-    if not check_if_fit_worked(directory):
+def read_results(filename):
+    if not Path(filename).exists():
         return None
 
     out = {}
 
-    with fits.open(Path(directory)/filename) as hdul:
+    with fits.open(filename) as hdul:
         header = fits.header.Header(hdul[2].header)
-        out['image'] = image = hdul[1].data
+        out['image'] = hdul[1].data
         out['model'] = hdul[2].data
         out['residuals'] = hdul[3].data
-
 
     out['fitstats'] = read_fitstats_from_header(header)
     out['components'] = read_components_from_header(header)
@@ -137,12 +134,7 @@ def read_results(directory, filename='imgblock.fits'):
     return out
 
 
-def check_if_fit_worked(directory):
-    imgblock_exists = (directory/'imgblock.fits').exists()
-    return imgblock_exists
-
 def read_fitstats_from_header(header):
-
     stats = {}
     stats['magzpt'] = header["MAGZPT"]
 
