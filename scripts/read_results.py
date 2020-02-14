@@ -16,9 +16,11 @@ parser.add_argument('filenames', type=str, help='galfit imgblock filename(s)',
 parser.add_argument('-c', '--component', type=int, help='component to print')
 parser.add_argument('-u', action='store_true', help='print uncertainties')
 parser.add_argument('-f', action='store_true', help='print flags')
+parser.add_argument('-s', action='store_true', help='print sky')
 args = parser.parse_args()
 
-patterns = [k for k, v in {'_unc': args.u, '_flag': args.f}.items() if not v]
+patterns = [k for k, v in {
+    '_unc': args.u, '_flag': args.f, 's': args.s}.items() if not v]
 
 results = Table()
 for i, filename in enumerate(args.filenames):
