@@ -4,11 +4,6 @@ from astropy.table import Table, Column, vstack
 import numpy as np
 
 
-'''filename = ('/Users/peterlustig/Documents/fit_targets/manual/'
-            'id06_map08_mcc248503/add_psf/imgblock.fits')
-'''
-
-
 def remove_columns_with_patterns(table, patterns):
     for k in table.keys():
         if any([p in k for p in patterns]):
