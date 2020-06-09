@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/pslustig/galaxywrap.git",
     packages=setuptools.find_packages(),
-    install_requires=['numpy', 'astropy', 'matplotlib'],
+    install_requires=['numpy', 'astropy', 'matplotlib', 'scipy'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
