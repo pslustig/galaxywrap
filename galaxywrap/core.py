@@ -149,7 +149,7 @@ def read_fitstats_from_header(header):
     convbox = header["CONVBOX"]
     convbox = convbox.split(",")
     stats['convbox_x'] = convbox[0]
-    stats['self.convbox_y'] = convbox[1]
+    stats['convbox_y'] = convbox[1]
 
     # Read in the chi-square value
     stats['chisq'] = header["CHISQ"]

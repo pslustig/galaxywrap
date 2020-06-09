@@ -8,6 +8,7 @@ import warnings
 from astropy.table import Table, vstack
 from . import core
 import matplotlib.pyplot as plt
+from . import fitting
 
 
 class imageproperties(object):
@@ -96,15 +97,39 @@ class image(NDDataArray):
         properties = kwargs.pop('properties', imageproperties())
 
         unc = kwargs.pop('uncertainty', None)
+        psf = kwargs.pop('psf', None)
+
         if unc is not None:
             unc = StdDevUncertainty(unc)
 
-        super(image, self).__init__(data, uncertainty=unc, *args, **kwargs)
+        super().__init__(data, uncertainty=unc, *args, **kwargs)
         self.properties = properties
+        self.psf = psf
 
     def __array__(self):
         """  Overrite NDData.__array__ to force for MaskedArray output  """
         return np.ma.array(self.data, mask=self.mask)
+
+    def add_component(self, component, psf=None, addnoise=True):
+        if psf is None:
+            psf = self.psf
+
+        mdl = model(component)
+        img = mdl.make(self, addnoise=False)
+        std = np.sqrt(np.abs(img))
+
+        unc = self.uncertainty
+        unc = np.zeros(self.data.shape) if unc is None else unc.array
+        # print(unc.type, std.type)
+        unc = np.sqrt(unc**2 + std**2)
+
+        newimg = self.data + img
+
+        if addnoise:
+            newimg = newimg + np.random.normal(scale=std)
+
+        return image(data=newimg, mask=self.mask, uncertainty=unc,
+                     properties=self.properties, psf=self.psf)
 
     @classmethod
     def read(cls, filename, dataidx=0, headeridx=None, maskidx=None,
@@ -233,19 +258,31 @@ class model(object):
     def _add_skip_in_image(self, skipinimage):
         self._skipinimage.append(skipinimage)
 
-    def fit(self, image, psf, fitarea=None, gconstraints=None, **kwargs):
+    def fit(self, image, psf=None, fitarea=None, gconstraints=None, **kwargs):
         '''fit model to data. input:
         map with properties, psf, fitarea
 
         returns
         new model with fit results and log
         '''
+        if psf is None:
+            psf = image.psf
+
         return self._start_galfitrun(
                     0, image, psf, fitarea, gconstraints, **kwargs)
 
-    def make(self, image, psf, **kwargs):
-        return self._start_galfitrun(
+    def make(self, image, psf=None, addnoise=False, **kwargs):
+        if psf is None:
+            psf = image.psf
+
+        r = self._start_galfitrun(
                     2, image, psf, fitarea=None, gconstraints=None, **kwargs)
+
+        model = r['model']
+        if addnoise:
+            model = model + np.random.normal(scale=np.sqrt(model))
+
+        return model
 
     def _make_global_constraints(self, gconstraints):
         return ''
@@ -314,7 +351,7 @@ class model(object):
         # ignore warnings...
         self._to_table().write(*args, **kwargs)
 
-    def plot(self, ax=None, legendkw={}, **kwargs):
+    def plot(self, ax=None, fitzone=None, legendkw={}, **kwargs):
 
         if ax is None:
             fig, ax = plt.subplots(1, 1)
@@ -329,3 +366,14 @@ class model(object):
                 ax.scatter(x, y, label=str(i) + ' ' + component.name, **kwargs)
                 ax.text(x, y, str(i))
         ax.legend(**legendkw)
+        if fitzone is not None:
+            (x0, x1), (y0, y1) = np.array(fitzone) - 0.5
+            xlength, ylength = x1 - x0, y1 - y0
+            scale = .1
+
+            ax.plot([x0, x1, x1, x0, x0, y1], [y0, y0, y1, y1, y0, y0],
+                    color='k')
+            ax.set_xlim(x0 - scale * xlength, x1 + scale * xlength)
+            ax.set_ylim(y0 - scale * ylength, y1 + scale * ylength)
+
+        return ax
