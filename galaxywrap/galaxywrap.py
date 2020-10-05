@@ -288,7 +288,7 @@ class model(object):
 
         model = r['model']
         if addnoise:
-            model = model + np.random.normal(scale=np.sqrt(model))
+            model = model + np.random.normal(scale=np.sqrt(np.abs(model)))
 
         return model
 
