@@ -6,6 +6,11 @@ from astropy.convolution import Tophat2DKernel
 from astropy import wcs
 
 
+def cut_to_fitarea(array, fitarea):
+    (x0, x1), (y0, y1) = fitarea
+    return array[y0:y1+1, x0:x1+1]
+
+
 def random_unmasked_positions(mask, npos, replace=True):
     ''' return npos pixel idices of randomly choosen unmasked pixels in order
         x, y '''

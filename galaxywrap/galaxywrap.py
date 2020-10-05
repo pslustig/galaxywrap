@@ -268,8 +268,16 @@ class model(object):
         if psf is None:
             psf = image.psf
 
-        return self._start_galfitrun(
+        fitresult = self._start_galfitrun(
                     0, image, psf, fitarea, gconstraints, **kwargs)
+        if image.uncertainty is not None:
+            if (fitarea is not None):
+                fitresult['sigma'] = utils.cut_to_fitarea(
+                                    image.uncertainty.array, fitarea)
+            else:
+                fitresult['sigma'] = image.uncertainty.array
+
+        return fitresult
 
     def make(self, image, psf=None, addnoise=False, **kwargs):
         if psf is None:
